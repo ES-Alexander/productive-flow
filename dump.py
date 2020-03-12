@@ -31,7 +31,7 @@ while True:
     info = ''
     elaboration = input('parameters:\n')
     while elaboration:
-        info += elaboration
+        info += elaboration + '\n'
         elaboration = input()
 
     main.create_sub_project(name, **eval('dict({})'.format(info)))
