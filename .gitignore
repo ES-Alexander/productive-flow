@@ -1,3 +1,5 @@
 # don't include:
-#test data folder
+# test data folder
 *projects*
+# cached stuff
+*__pycache__*
