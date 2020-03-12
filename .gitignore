@@ -3,3 +3,5 @@
 *projects*
 # cached stuff
 *__pycache__*
+# swap files
+*.swp
