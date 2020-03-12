@@ -21,6 +21,7 @@ print('', '#' * 50, '',
       "duration = '10.5h' (or '5d'),",
       "scheduled_time = 'xh' or 'xd',",
       "precursors = ['name1', ...],",
+      "complete = True (defaults to False)",
       "To finish elaborating, press enter on a blank line.\n",
       section, '', sep='\n')
 
@@ -37,4 +38,5 @@ while True:
     main.create_sub_project(name, **eval('dict({})'.format(info)))
 
 main.save()
-print('new items saved')
+print('New items saved\n')
+main.print()
