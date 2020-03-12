@@ -7,7 +7,7 @@ main = Project('main')
 section = '-' * 50
 print('', '#' * 50, '',
       'Enter item names, with optional elaboration.',
-      "To quit, enter a single 'q' as the name of the next item.",
+      "To quit, enter nothing as the name of the next item.",
       'To elaborate, enter parameters and values in the form:',
       'param = value,',
       'making sure to denote values with appropriate Python syntax',
