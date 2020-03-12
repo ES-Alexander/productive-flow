@@ -82,7 +82,6 @@ class Project(object):
 
         if self._modified:
             self.save()
-            print('saved,', self.sub_projects.keys())
 
     def __modifier(func):
         ''' A wrapper for functions which modify the internal state. '''
@@ -215,12 +214,12 @@ class Project(object):
         self.sub_projects[sub_project.name] = sub_project
         return sub_project
 
-    def create_sub_project(self, name, **params):
+    def create_sub_project(self, name, **kwargs):
         ''' Create a new sub-project Project with given parameters. '''
         sub_project_file = self._sub_project_path + '/{}.txt'.format(name)
         return self.add_sub_project(modifier=os.path.isfile(sub_project_file),
                 sub_project=Project(name, path=self._sub_project_path,
-                                    parent=self, **params))
+                                    parent=self, **kwargs))
 
     @__modifier
     def remove_sub_project(self, sub_project):
@@ -259,12 +258,12 @@ class Project(object):
         self.precursors[precursor.name] = precursor
         return precursor
 
-    def create_precursor(self, name, **params):
+    def create_precursor(self, name, **kwargs):
         ''' '''
         # TODO check the logic of when to set modifier to True
         precursor_file = self._path + '/{}.txt'.format(name)
         return self.add_precursor(Project(name, path=self.path,
-                                          parent=self._parent, **params),
+                                          parent=self._parent, **kwargs),
                                   modifier=os.path.isfile(precursor_file))
 
     @__modifier
