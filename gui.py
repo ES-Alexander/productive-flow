@@ -12,8 +12,6 @@ class Controller(object):
         self._view = MainView(self._root, self._project, **kwargs)
         self._view.grid(sticky='news')
 
-        self._view.connect_stuff()
-
         self._root.mainloop()
 
 if __name__ == '__main__':

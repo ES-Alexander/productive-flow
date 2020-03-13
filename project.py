@@ -55,7 +55,10 @@ class Project(object):
                 # initialise from saved file
                 with open(self._save_file) as info:
                     # insertion security risk - does it matter?
-                    kwargs.update(eval('dict({})'.format(info.read())))
+                    file_data = eval('dict({})'.format(info.read()))
+                # use current input as default, file as old
+                file_data.update(kwargs)
+                kwargs = file_data
                 self._modified = False
 
         self.details           = kwargs.get('details', '')

@@ -22,6 +22,14 @@ class LabelEntry(object):
         else:
             self._entry.grid(row=row, column=entry_col)
 
+    def get(self):
+        ''' '''
+        return self._entry.get()
+
+    def delete(self, *args, **kwargs):
+        ''' '''
+        return self._entry.delete(*args, **kwargs)
+
 class FormattedStringVar(tk.StringVar):
     ''' StringVar with optional constant text. '''
     def __init__(self, prefix='', suffix='', format_str='', **kwargs):
@@ -63,7 +71,7 @@ class FormattedStringVar(tk.StringVar):
         ''' '''
         self._value = value
         if self._format_str:
-            output = self._value.format(self._format_str)
+            output = self._format_str.format(self._value)
         else:
             output = self._prefix + value + self._suffix
         super().set(output)
