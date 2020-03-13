@@ -12,7 +12,8 @@ HEADING_FONT = ('Helvetica', 16, 'bold')
 
 class ProjectView(tk.Frame):
     ''' The basic display of a project. '''
-    def __init__(self, master, project, default_show=True, **kwargs):
+    def __init__(self, master, project, default_show=True, show_complete=True,
+                 **kwargs):
         ''' '''
         super().__init__(master, **kwargs)
         self._master = master
@@ -22,16 +23,22 @@ class ProjectView(tk.Frame):
         self._name.grid(row=0, column=1, sticky='w')
         self._the_og_bg = self._name.cget('background')
 
+        self._show_complete = show_complete
+        self.hidden = False
+
+        self._init = True
         if self._project.complete:
             self.update_name_complete()
         else:
             self.update_name_not_complete()
+        self._init = False
 
         # TODO due date display
 
         if self._project.sub_projects:
             self._sub_projects = ProjectsDisplay(self,
-                    self._project.sub_projects.values())
+                    self._project.sub_projects.values(),
+                    show_complete=self._show_complete)
             self._minimise = tk.Label(self, cursor=CLICK_CURSOR)
             self._minimise.grid(row=0, column=0, sticky='n')
             self.maximise()
@@ -42,8 +49,13 @@ class ProjectView(tk.Frame):
             self._spacer.grid(row=0, column=0)
 
     def update_name_complete(self):
-        self._name.config(bg='green')
-        self._name.bind('<Double-Button-1>', self.remove_complete)
+        if self._show_complete:
+            self._name.config(bg='green')
+            self._name.bind('<Double-Button-1>', self.remove_complete)
+        else:
+            self.hidden = True
+            if not self._init:
+                self.grid_remove()
 
     def complete(self, event=None):
         ''' Binding for completion of the Project. '''
@@ -60,6 +72,7 @@ class ProjectView(tk.Frame):
         ''' Remove complete status from Project. '''
         self._project.complete = False
         self._project.completion_date = None
+        self._project.save()
         self.update_name_not_complete()
 
     def minimise(self, event=None):
@@ -148,10 +161,12 @@ class ProjectEditor(tk.Frame):
 
 class ProjectsDisplay(tk.Frame):
     ''' A display element for a collection of ProjectViews. '''
-    def __init__(self, master, projects, title=None, **kwargs):
+    def __init__(self, master, projects, title=None, show_complete=True,
+                 **kwargs):
         ''' '''
         super().__init__(master, **kwargs)
         self._master = master
+        self._show_complete = show_complete
 
         if title:
             self._title = tk.Label(self, text=title, font=HEADING_FONT)
@@ -167,14 +182,16 @@ class ProjectsDisplay(tk.Frame):
     def add_project(self, project):
         ''' Add a Project to the display. '''
         self._projects.append(project)
-        project_view = ProjectView(self, project)
+        project_view = ProjectView(self, project,
+                                   show_complete=self._show_complete)
         self.add_project_view(project_view)
 
     def add_project_view(self, project_view, project=None):
         ''' Add a ProjectView to the display. '''
         if project:
             self._projects.append(project)
-        project_view.grid(sticky=tk.W+tk.E)
+        if not project_view.hidden:
+            project_view.grid(sticky=tk.W+tk.E)
         self._project_views.append(project_view)
 
     def remove_project(self, project):
