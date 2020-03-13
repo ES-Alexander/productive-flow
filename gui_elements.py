@@ -6,25 +6,43 @@ HEADING_FONT = ('Helvetica', 16, 'bold')
 
 class ProjectView(tk.Frame):
     ''' The basic display of a project. '''
-    def __init__(self, master, project, show_sub_projects=True, **kwargs):
+    def __init__(self, master, project, default_show=True, **kwargs):
         ''' '''
         super().__init__(master, **kwargs)
         self._master = master
         self._project = project
 
         self._name = tk.Label(self, text=self._project.name, anchor=tk.W)
-        self._name.grid(column=0, columnspan=2, sticky='ew')
+        self._name.grid(row=0, column=1, sticky='w')
 
         if self._project.complete:
             self._name.config(bg='green')
         # TODO completion checkbox
         # TODO due date display
 
-        if show_sub_projects and self._project.sub_projects:
+        if self._project.sub_projects:
             self._sub_projects = ProjectsDisplay(self,
                     self._project.sub_projects.values())
-            tk.Label(self, text=' ').grid()
-            self._sub_projects.grid(row=1, column=1)
+            self._minimise = tk.Label(self)
+            self._minimise.grid(row=0, column=0, sticky='n')
+            self.maximise()
+            if not default_show:
+                self.minimise()
+        else:
+            self._spacer = tk.Label(self, text=' '*2)
+            self._spacer.grid(row=0, column=0)
+
+    def minimise(self, event=None):
+        ''' Binding for hiding this Project's sub-projects. '''
+        self._minimise.config(text='+')
+        self._sub_projects.grid_remove()
+        self._minimise.bind('<Button-1>', self.maximise)
+
+    def maximise(self, event=None):
+        ''' Binding for showing this Project's sub-projects. '''
+        self._minimise.config(text='-')
+        self._sub_projects.grid(row=1, column=1)
+        self._minimise.bind('<Button-1>', self.minimise)
 
 class DetailedProjectView(ProjectView):
     ''' The detailed display of a project. '''
