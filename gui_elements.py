@@ -16,7 +16,7 @@ class ProjectView(tk.Frame):
         self._name.grid(columnspan=2)
 
         if self._project.complete:
-            self.config(bg='green')
+            self._name.config(bg='green')
         # TODO completion checkbox
         # TODO due date display
 
@@ -60,7 +60,7 @@ class ProjectEditor(tk.Frame):
         self._title = FormattedStringVar(format_str='Add to {}')
         tk.Label(self, textvariable=self._title, font=HEADING_FONT).grid(
                 columnspan=2)
-        self._title.set("unordered")
+        self._title.set("to do")
 
     def _create_entries(self):
         ''' '''
@@ -136,11 +136,12 @@ class MainView(tk.Frame):
                 unordered_projects.append(project)
 
         # creation
+        display = dict(bd=1, relief=tk.RAISED)
         self._planned_display = ProjectsDisplay(self, planned_projects,
-                                                'planned/sorted', bd=5)
+                                                'planned to do', **display)
         self._unordered_display = ProjectsDisplay(self, unordered_projects,
-                                                  'unordered', bd=5)
-        self._project_editor = ProjectEditor(self, bd=5)
+                                                  'to do', **display)
+        self._project_editor = ProjectEditor(self, **display)
 
         # layout
         self._planned_display.grid(row=0, column=0, rowspan=2, sticky='news')
