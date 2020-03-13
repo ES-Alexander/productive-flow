@@ -8,7 +8,9 @@ class Controller(object):
     def __init__(self, **kwargs):
         ''' '''
         self._root = tk.Tk()
-        self._view = MainView(self._root, **kwargs)
+        self._project = Project('main')
+        self._view = MainView(self._root, self._project, **kwargs)
+        self._view.grid()
 
         self._view.connect_stuff()
 
