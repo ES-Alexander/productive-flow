@@ -2,6 +2,12 @@
 
 from low_level_elements import * # tk, LabelEntry, FormattedStringVar
 
+from sys import platform
+if platform.startswith('darwin'):
+    CLICK_CURSOR = 'pointinghand'
+else:
+    CLICK_CURSOR = 'double_arrow'
+
 HEADING_FONT = ('Helvetica', 16, 'bold')
 
 class ProjectView(tk.Frame):
@@ -14,16 +20,19 @@ class ProjectView(tk.Frame):
 
         self._name = tk.Label(self, text=self._project.name, anchor=tk.W)
         self._name.grid(row=0, column=1, sticky='w')
+        self._the_og_bg = self._name.cget('background')
 
         if self._project.complete:
-            self._name.config(bg='green')
-        # TODO completion checkbox
+            self.update_name_complete()
+        else:
+            self.update_name_not_complete()
+
         # TODO due date display
 
         if self._project.sub_projects:
             self._sub_projects = ProjectsDisplay(self,
                     self._project.sub_projects.values())
-            self._minimise = tk.Label(self)
+            self._minimise = tk.Label(self, cursor=CLICK_CURSOR)
             self._minimise.grid(row=0, column=0, sticky='n')
             self.maximise()
             if not default_show:
@@ -31,6 +40,27 @@ class ProjectView(tk.Frame):
         else:
             self._spacer = tk.Label(self, text=' '*2)
             self._spacer.grid(row=0, column=0)
+
+    def update_name_complete(self):
+        self._name.config(bg='green')
+        self._name.bind('<Double-Button-1>', self.remove_complete)
+
+    def complete(self, event=None):
+        ''' Binding for completion of the Project. '''
+        self._project.set_complete()
+        self._project.save()
+        self.update_name_complete()
+
+    def update_name_not_complete(self):
+        ''' '''
+        self._name.config(bg=self._the_og_bg)
+        self._name.bind('<Double-Button-1>', self.complete)
+
+    def remove_complete(self, event=None):
+        ''' Remove complete status from Project. '''
+        self._project.complete = False
+        self._project.completion_date = None
+        self.update_name_not_complete()
 
     def minimise(self, event=None):
         ''' Binding for hiding this Project's sub-projects. '''
@@ -41,7 +71,7 @@ class ProjectView(tk.Frame):
     def maximise(self, event=None):
         ''' Binding for showing this Project's sub-projects. '''
         self._minimise.config(text='-')
-        self._sub_projects.grid(row=1, column=1)
+        self._sub_projects.grid(row=1, column=1, columnspan=1)
         self._minimise.bind('<Button-1>', self.minimise)
 
 class DetailedProjectView(ProjectView):
@@ -125,7 +155,7 @@ class ProjectsDisplay(tk.Frame):
 
         if title:
             self._title = tk.Label(self, text=title, font=HEADING_FONT)
-            self._title.grid()
+            self._title.grid(sticky='ew')
 
         self._projects = []
         self._project_views = []
