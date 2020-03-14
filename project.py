@@ -17,8 +17,9 @@ class Project(object):
         **kwargs options:
             'details' is a string specifying notes or details about the
                 Project.
-            'sub_projects'* is a list of Project instances which are
-                sub-projects of this Project, or a list of their names.
+            'sub_projects' is a list of Project instances and/or their names,
+                or a comma-separated string of names, which are sub-projects of
+                this Project.
             'due_date' is a datetime instance of when this Project is due, or
                 a string with format Project.TIME_FORMAT.
             'completion_date' is the true or desired completion date, depending
@@ -30,13 +31,10 @@ class Project(object):
             'scheduled_time' is the amount of time scheduled for this Project
                 as a string in form 'xd' or 'xh' for days/hours respectively,
                 or as a timedelta object.
-            'precursors'* is a list of Project instances which must be
-                completed before this one can be started, or a list of their
-                names.
+            'precursors' are Projects which must be completed before this one
+                can be started, as a list of Project instances and/or their
+                names, or a comma-separated string of names.
             'parent' is the parent of self, if it exists and is initialised.
-
-            * these lists can also contain a mixture of initialised Project
-                instances, and Project names.
 
         '''
         if not os.path.isdir(path):
@@ -94,8 +92,18 @@ class Project(object):
         return func_wrapper
 
     def _load_sub_projects(self, sub_projects):
-        ''' '''
+        ''' Load 'sub_projects' into this Project.
+
+        'sub_projects' are Projects which are a part of this Project.
+            Valid inputs are a list of Project names and/or instances, or a
+            comma-separated string of names.
+
+        '''
         names = []
+        # pre-process a string of comma-separated names
+        if isinstance(sub_projects, str):
+            sub_projects = [proj.strip() for proj in sub_projects.split(',')]
+
         for sub_project in sub_projects:
             if isinstance(sub_project, str):
                 names.append(sub_project) # add in creation loop below
@@ -110,8 +118,19 @@ class Project(object):
                 self.create_sub_project(name)
 
     def _load_precursors(self, precursors):
-        ''' '''
+        ''' Load this Project's precursors.
+
+        'precursors' are Projects which must be completed before this Project
+            can be begun. Valid inputs are a list of Project names and/or
+            instances, or a comma-separated string of names.
+
+        '''
         names = []
+
+        # pre-process a string of comma-separated names
+        if isinstance(precursors, str):
+            precursorss = [proj.strip() for proj in precursors.split(',')]
+
         for precursor in precursors:
             if isinstance(precursor, str):
                 names.append(precursor) # add in creation loop below
@@ -131,20 +150,60 @@ class Project(object):
             for name in names:
                 self.create_precursor(name)
 
+    def _get_date_str(self, date):
+        ''' Return 'date' as a string in self.TIME_FORMAT format. '''
+        if date:
+            return datetime.strftime(date, self.TIME_FORMAT)
+        return ''
+
+    def get_due_date_str(self):
+        return self._get_date_str(self.due_date)
+
+    def get_completion_date_str(self):
+        return self._get_date_str(self.completion_date)
+
+    def _get_time_str(self, time):
+        ''' Return 'time' as a string in 'xh'/'xd' format. '''
+        if not time:
+            return ''
+        hours = time / timedelta(hours=1)
+        if hours > 24:
+            days = hours / 24
+            return '{}d'.format(days)
+        return '{}h'.format(hours)
+
+    def get_duration_str(self):
+        return self._get_time_str(self.duration)
+
+    def get_scheduled_time_str(self):
+        return self._get_time_str(self.scheduled_time)
+
+    def get_properties(self):
+        ''' Return a dictionary of string-equivalents of common properties. '''
+        return dict(
+            name = self.name,
+            details = self.details or '',
+            due_date = self.get_due_date_str(),
+            precursors = ', '.join(self.precursors.keys()),
+            duration = self.get_duration_str(),
+            scheduled_time = self.get_scheduled_time_str(),
+            sub_projects = ', '.join(self.sub_projects.keys()),
+            completion_date = self.get_completion_date_str(),
+        )
 
     @__modifier
     def rename(self, name):
-        ''' '''
+        ''' Rename this project. '''
         if self._level == 0:
             raise Exception('Cannot rename a Project with no '
                             'instantiated parent')
         old_name = self.name
         self.name = name
-        self.replace_files(old_name, name)
+        self._replace_file(old_name, name)
         self._parent._sub_project_renamed(old_name, new_name)
 
-    def _replace_files(self, old_name, new_name):
-        ''' '''
+    def _replace_file(self, old_name, new_name):
+        ''' Rename the existing 'old_name' file with 'new_name'. '''
         old_dir = self.path + '/{}/'.format(old_name)
         new_dir = self.path + '/{}/'.format(new_name)
         if os.path.isfile(self._save_file):
@@ -156,8 +215,10 @@ class Project(object):
 
     @__modifier
     def _sub_project_renamed(self, old_name, new_name):
-        ''' '''
+        ''' Handle the renaming of a sub_project. '''
+        # update registered sub-projects
         self.sub_projects[new_name] = self.sub_projects.pop(old_name)
+        # update precursors to reflect new name
         for name in self.sub_projects:
             sub_project = self.sub_projects[name]
             sub_project._precursor_renamed(old_name, new_name)
@@ -180,7 +241,7 @@ class Project(object):
         if not completion_date:
             # assume completion was now
             completion_date = datetime.today()
-        self.set_desired_completion_date(completion_date)
+        self.set_completion_date(completion_date)
 
     @__modifier
     def set_due_date(self, due_date):
@@ -204,6 +265,13 @@ class Project(object):
         ''' Check against durations estimate '''
         self.scheduled_time = self._format_duration(amount)
 
+    @__modifier
+    def move_to(self, new_parent):
+        ''' Move this Project to 'new_parent'. '''
+        old_parent = self._parent
+        new_parent.add_sub_project(self)
+        old_parent.remove_sub_project(self)
+
     def add_sub_project(self, sub_project, modifier=True):
         ''' Add the specified Project as a sub-project to this project.
 
@@ -215,6 +283,7 @@ class Project(object):
         if modifier or sub_project._modified:
             self._modified = True
         self.sub_projects[sub_project.name] = sub_project
+        sub_project._parent = self # set in case being moved here
         return sub_project
 
     def create_sub_project(self, name, **kwargs):
@@ -296,19 +365,17 @@ class Project(object):
             save_str += 'sub_projects = ["{}"],\n'.format(
                     '","'.join(self.sub_projects.keys()))
         if self.due_date:
-            save_str += 'due_date = "{}",\n'.format(datetime.strftime(
-                    self.due_date, self.TIME_FORMAT))
+            save_str += 'due_date = "{}",\n'.format(self.get_due_date_str())
         if self.completion_date:
-            save_str += 'completion_date = "{}",\n'.format(datetime.strftime(
-                    self.completion_date, self.TIME_FORMAT))
+            save_str += 'completion_date = "{}",\n'.format(
+                self.get_completion_date_str())
         if self.complete:
             save_str += 'complete = True,\n'
         if self.duration:
-            save_str += 'duration = "{}h",\n'.format(
-                    self.duration / timedelta(hours=1))
+            save_str += 'duration = "{}h",\n'.format(self.get_duration_str())
         if self.scheduled_time:
             save_str += 'scheduled_time = "{}h",\n'.format(
-                    self.scheduled_time / timedelta(hours=1))
+                    self.get_scheduled_time_str())
         if self.precursors:
             save_str += 'precursors = ["{}"],\n'.format(
                     '","'.join(self.precursors.keys()))
