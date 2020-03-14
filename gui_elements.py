@@ -87,15 +87,8 @@ class ProjectView(tk.Frame):
         self._sub_projects.grid(row=1, column=1, columnspan=1)
         self._minimise.bind('<Button-1>', self.minimise)
 
-class DetailedProjectView(ProjectView):
-    ''' The detailed display of a project. '''
-    def __init__(self, master, project, **kwargs):
-        ''' '''
-        super().__init__(master, project, **kwargs)
-        # TODO
-
 class ProjectEditor(tk.Frame):
-    ''' A widget to create a project '''
+    ''' A widget to edit and create Project instances. '''
     def __init__(self, master, **kwargs):
         ''' '''
         super().__init__(master, **kwargs)
@@ -113,13 +106,19 @@ class ProjectEditor(tk.Frame):
             result = entry.get()
             if result:
                 submission_results[name.replace(' ','_')] = result
-            entry.delete(0, tk.END)
+            entry.clear()
         return submission_results
+
+    def display_selection_data(self, data):
+        ''' '''
+        for name in data:
+            self._entries[name].set(data[name])
 
     def _initialise_bindings(self):
         ''' '''
         self._bindings = {
             'submit': lambda *args, **kwargs: None,
+            'delete': lambda *args, **kwargs: None,
         }
 
     def _create_display(self):
@@ -139,6 +138,8 @@ class ProjectEditor(tk.Frame):
         ''' '''
         self._entries = {}
         for index, value in enumerate(['name', 'details', 'due_date',
+                                       'precursors', 'duration',
+                                       'scheduled_time', 'sub_projects',
                                        'completion_date']):
             text = value.replace('_', ' ')
             self._entries[value] = LabelEntry(self,
@@ -208,7 +209,6 @@ class MainView(tk.Frame):
         super().__init__(master, **kwargs)
         self._master = master
         self._main_project = main_project
-        self._focus_project = self._main_project # project currently in focus
 
         # pre-sorting of projects
         self._planned = []
@@ -231,6 +231,9 @@ class MainView(tk.Frame):
         # connection
         self.set_submit_binding()
 
+        # post setup
+        self._set_focus(self._main_project)
+
     def _sort_projects(self):
         ''' '''
         for name in self._main_project.sub_projects:
@@ -242,7 +245,42 @@ class MainView(tk.Frame):
 
     @staticmethod
     def _project_planned(project):
+        ''' Returns True if 'project' is classified as planned. '''
+        # currently based on just if a project has sub-projects
         return bool(project.sub_projects)
+
+    def _set_focus(self, project):
+        ''' '''
+        self._focus_project = project
+        # TODO handle project_editor display
+        if self._focus_project == self._main_project:
+            pass # 'add' mode to main, disable 'edit' button?
+        else:
+            pass # 'edit' mode? 'add' mode?
+        self._project_editor.display_selection_data(project.get_properties())
+
+    def set_delete_binding(self):
+        ''' '''
+        def delete_binding(event=None):
+            ''' '''
+            removee = self._focus_project
+            parent = removee._parent
+            if parent == self._main_project:
+                # remove from planned/unordered
+                if self._project_planned(removee):
+                    self._planned.remove(removee)
+                    self._planned_display.remove_project(removee)
+                else:
+                    self._unordered.remove(removee)
+                    self._unordered_display.remove_project(removee)
+            # else: display removal handled by ProjectView
+
+            parent.remove_sub_project(removee)
+            # set focus back to main project
+            # TODO perhaps change this to next project down, or to parent?
+            self._set_focus(self._main_project)
+
+        self._project_editor.set_binding('delete', delete_binding)
 
     def set_submit_binding(self):
         ''' '''

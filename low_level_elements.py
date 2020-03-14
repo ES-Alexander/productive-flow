@@ -22,13 +22,18 @@ class LabelEntry(object):
         else:
             self._entry.grid(row=row, column=entry_col)
 
+    def set(self, text):
+        ''' Set the internal Entry widget text. '''
+        self.clear()
+        self._entry.insert(0, text)
+
     def get(self):
-        ''' '''
+        ''' Return the text of the internal Entry widget. '''
         return self._entry.get()
 
-    def delete(self, *args, **kwargs):
-        ''' '''
-        return self._entry.delete(*args, **kwargs)
+    def clear(self):
+        ''' Clear the text of the internal Entry widget. '''
+        self._entry.delete(0, tk.END)
 
 class FormattedStringVar(tk.StringVar):
     ''' StringVar with optional constant text. '''
