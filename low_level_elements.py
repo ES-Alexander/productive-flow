@@ -50,6 +50,7 @@ class FormattedStringVar(tk.StringVar):
             ''' Sets the display to the current value with the new format. '''
             func(self, *args, **kwargs)
             self.set(self._value)
+        return func_wrapper
 
     @_value_changer
     def set_format_string(self, format_str):
