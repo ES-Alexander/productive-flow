@@ -150,19 +150,47 @@ class Project(object):
             for name in names:
                 self.create_precursor(name)
 
-    def _get_date_str(self, date):
-        ''' Return 'date' as a string in self.TIME_FORMAT format. '''
-        if date:
-            return datetime.strftime(date, self.TIME_FORMAT)
-        return ''
+    @classmethod
+    def _get_date_str(cls, date, constant=True):
+        ''' Return 'date' as a string.
 
-    def get_due_date_str(self):
-        return self._get_date_str(self.due_date)
+        If 'constant' is left as True, the returned string is in the format of
+            cls.TIME_FORMAT. Otherwise intelligent mode is activated,
+            returning a more meaningful string relative to the current time.
 
-    def get_completion_date_str(self):
-        return self._get_date_str(self.completion_date)
+        '''
+        if not date:
+            return ''
+        if constant:
+            return datetime.strftime(date, cls.TIME_FORMAT)
+        # intelligent mode TODO check if logic (some should be days based)
+        diff = date - datetime.today()
+        abs_diff = abs(diff)
+        if abs_diff >= timedelta(days=365): # dd/Mmm/yyyy
+            return datetime.strftime(date, '%d/%b/%Y')
+        if abs_diff >= timedelta(days=7): # dd/Mmm @hh:mm
+            return datetime.strftime(date, '%d/%b @%H:%M')
+        if diff < timedelta(days=-1): # Last Ddd @hh:mm
+            return datetime.strftime(date, 'Last %a @%H:%M')
+        if diff < timedelta(days=0): # Yesterday @hh:mm
+            return datetime.strftime(date, 'Yesterday @%H:%M')
+        date_date = date.date()
+        todate = datetime.today().date()
+        if date_date == todate: # Today @hh:mm
+            return datetime.strftime(date, 'Today @%H:%M')
+        if date_date - todate == timedelta(days=1): # Tomorrow @hh:mm
+            return datetime.strftime(date, 'Tomorrow @%H:%M')
+        if diff < timedelta(days=7): # Ddd @hh:mm
+            return datetime.strftime(date, '%a @%H:%M')
 
-    def _get_time_str(self, time):
+    def get_due_date_str(self, constant=True):
+        return self._get_date_str(self.due_date, constant)
+
+    def get_completion_date_str(self, constant=True):
+        return self._get_date_str(self.completion_date, constant)
+
+    @staticmethod
+    def _get_time_str(time):
         ''' Return 'time' as a string in 'xh'/'xd' format. '''
         if not time:
             return ''
@@ -178,17 +206,17 @@ class Project(object):
     def get_scheduled_time_str(self):
         return self._get_time_str(self.scheduled_time)
 
-    def get_properties(self):
+    def get_properties(self, constant=False):
         ''' Return a dictionary of string-equivalents of common properties. '''
         return dict(
             name = self.name,
             details = self.details or '',
-            due_date = self.get_due_date_str(),
+            due_date = self.get_due_date_str(constant),
             precursors = ', '.join(self.precursors.keys()),
             duration = self.get_duration_str(),
             scheduled_time = self.get_scheduled_time_str(),
             sub_projects = ', '.join(self.sub_projects.keys()),
-            completion_date = self.get_completion_date_str(),
+            completion_date = self.get_completion_date_str(constant),
         )
 
     @__modifier
@@ -387,6 +415,7 @@ class Project(object):
         if isinstance(date, datetime):
             return date
         if isinstance(date, str):
+            # TODO handle intelligent date-string formats
             return datetime.strptime(date, cls.TIME_FORMAT)
 
     @staticmethod
@@ -396,7 +425,9 @@ class Project(object):
             return duration
         if isinstance(duration, str):
             if 'h' in duration:
+                # duration formatted as x hours 'xh'
                 return timedelta(hours=float(duration[:-1]))
+            # duration formatted as x days 'xd'
             return timedelta(days=float(duration[:-1]))
 
     def print(self):
