@@ -105,8 +105,10 @@ class ProjectView(tk.Frame):
 class ProjectEditor(tk.Frame):
     ''' A widget to edit and create Project instances. '''
     # title formats
-    ADD_FORMAT  = 'Adding to {!r} Project'
-    EDIT_FORMAT = 'Editing {!r} Project'
+    ADD_FORMAT  = 'Adding to {!r}'
+    EDIT_FORMAT = 'Editing {!r}'
+    ADD_MODE    = '++'
+    EDIT_MODE   = '\u21e6'
 
     def __init__(self, master, **kwargs):
         ''' '''
@@ -152,24 +154,28 @@ class ProjectEditor(tk.Frame):
 
     def _initialise_bindings(self):
         ''' '''
-        self._bindings = {
-            'submit': lambda *args, **kwargs: None,
-            'delete': lambda *args, **kwargs: None,
-        }
+        self._bindings = {}
+        for binding in ['submit', 'delete', 'add']:
+            self._bindings[binding] = lambda *args, **kwargs: None
 
     def _create_display(self):
         ''' '''
         self._create_title()
-        self._create_entries()
+        self._create_fields()
         self._create_buttons()
 
     def _create_title(self):
         ''' '''
+        title_frame = tk.Frame(self)
+        title_frame.grid(columnspan=2)
         self._title = FormattedStringVar()
-        tk.Label(self, textvariable=self._title, font=HEADING_FONT).grid(
-                columnspan=2)
+        self._title_label = tk.Label(title_frame, textvariable=self._title,
+                                     font=HEADING_FONT)
+        self._title_entry = tk.Entry(title_frame) # TODO grid when editing title
 
-    def _create_entries(self):
+        self._title_label.grid()
+
+    def _create_fields(self):
         ''' '''
         self._entries = {}
         for index, value in enumerate(['name', 'sub_projects','details',
@@ -179,17 +185,51 @@ class ProjectEditor(tk.Frame):
             self._entries[value] = LabelEntry(self,
                                               dict(text=text, anchor='e'),
                                               row=index+1)
-        self._button_row = index+2
 
     def _create_buttons(self):
         ''' '''
-        self._submit_button = tk.Button(self, text='submit',
-                                        command=self._submit_binding)
-        self._submit_button.grid(row=self._button_row, column=1, sticky='news')
+        self._button_frame = tk.Frame(self)
+        self._submit_button = tk.Button(self._button_frame, text='\u2713',
+                                        fg='#003300', command=self._submit_binding)
+        self._delete_button = tk.Button(self._button_frame, text='delete',
+                                        fg='#330000', command=self._delete_binding)
+        self._add_button_text = ''
+        self._add_mode_button = tk.Button(self._button_frame,
+                                          text=self._add_button_text,
+                                          command=self._add_binding)
+        self._add_binding()
+
+
+        self._button_frame.grid(sticky='ew')
+        self._submit_button.grid(row=0, column=2, sticky='e')
+        self._delete_button.grid(row=0, column=1, sticky='e')
+        self._add_mode_button.grid(row=0, column=0, sticky='w')
 
     def _submit_binding(self, event=None):
         ''' '''
         self._bindings['submit'](event)
+
+
+    def _delete_binding(self, event=None):
+        ''' '''
+        self._bindings['delete'](event)
+
+    def _add_binding(self, event=None):
+        ''' '''
+        if event:
+            self._bindings['add'](event)
+        if self._add_button_text == self.ADD_MODE:
+            self._add_button_text = self.EDIT_MODE
+            self._submit_button.grid_remove()
+            self._delete_button.grid()
+        else:
+            self._add_button_text = self.ADD_MODE
+            self._submit_button.grid()
+            self._delete_button.grid_remove()
+
+
+        self._add_mode_button.config(text=self._add_button_text)
+
 
     def set_binding(self, name, func):
         ''' Sets 'func' as the binding accessed by 'name'. '''
@@ -318,18 +358,35 @@ class MainView(tk.Frame):
         #self._set_focus_binding()
 
     def focus_binding(self, project):
+        ''' '''
         self._set_focus(project, mode=self.EDIT_MODE)
 
-    """
-    def _set_focus_binding(self):
+    def _set_submit_binding(self):
         ''' '''
-        def focus_binding(project):
+        def submit_binding(event=None):
             ''' '''
-            self._set_focus(project, mode=self.EDIT_MODE)
+            already_planned = self._project_planned(self._focus_project)
 
-        self._planned_display.set_focus_binding(focus_binding)
-        self._unordered_display.set_focus_binding(focus_binding)
-    """
+            # create a new project from the submission
+            new_proj = self._focus_project.create_sub_project(
+                    **self._project_editor.get_submission_results())
+            self._focus_project.save()
+
+            if not already_planned and \
+               self._project_planned(self._focus_project):
+                # planned now, so move appropriately
+                self._planned_display.add_project_view(
+                        project_view=self._unordered_display.remove_project(
+                        self._focus_project), project=self._focus_project)
+            elif self._focus_project == self._main_project:
+                if self._project_planned(new_proj):
+                    self._planned.append(new_proj)
+                    self._planned_display.add_project(new_proj)
+                else:
+                    self._unordered.append(new_proj)
+                    self._unordered_display.add_project(new_proj)
+
+        self._project_editor.set_binding('submit', submit_binding)
 
     def _set_delete_binding(self):
         ''' '''
@@ -355,29 +412,15 @@ class MainView(tk.Frame):
 
         self._project_editor.set_binding('delete', delete_binding)
 
-    def _set_submit_binding(self):
+    def _set_add_binding(self):
         ''' '''
-        def submit_binding(event=None):
+        def add_binding(event=None):
             ''' '''
-            already_planned = self._project_planned(self._focus_project)
+            if self._mode == self.ADD_MODE:
+                mode = self.EDIT_MODE
+            else:
+                mode = self.ADD_MODE
 
-            # create a new project from the submission
-            new_proj = self._focus_project.create_sub_project(
-                    **self._project_editor.get_submission_results())
-            self._focus_project.save()
+            self._set_focus(self._focus_project, mode)
 
-            if not already_planned and \
-               self._project_planned(self._focus_project):
-                # planned now, so move appropriately
-                self._planned_display.add_project_view(
-                        project_view=self._unordered_display.remove_project(
-                        self._focus_project), project=self._focus_project)
-            elif self._focus_project == self._main_project:
-                if self._project_planned(new_proj):
-                    self._planned_display.add_project(new_proj)
-                else:
-                    self._unordered_display.add_project(new_proj)
-
-        self._project_editor.set_binding('submit', submit_binding)
-
-
+        self._project_editor.set_binding('add', add_binding)
