@@ -20,11 +20,16 @@ class ProjectView(tk.Frame):
         self._project = project
         self._focus_binding = focus_binding
 
-        self._name = tk.Label(self, text=self._project.name, anchor=tk.W)
+        self._name = tk.Label(self, text=self._project.name)
         self._name.grid(row=0, column=1, sticky='w')
+        self._the_og_bg = self._name.cget('background')
+        self._the_og_fg = self._name.cget('foreground')
         self._name.bind('<Button-1>',
                         lambda event: self._focus_binding(self._project))
-        self._the_og_bg = self._name.cget('background')
+        self._name.bind('<Enter>',
+                        lambda event: self._name.config(bg='#eeeeee'))
+        self._name.bind('<Leave>',
+                        lambda event: self._name.config(bg=self._the_og_bg))
 
         self._show_complete = show_complete
         self.hidden = False
@@ -53,7 +58,7 @@ class ProjectView(tk.Frame):
 
     def update_name_complete(self):
         if self._show_complete:
-            self._name.config(bg='green')
+            self._name.config(fg='green')
             self._name.bind('<Double-Button-1>', self.remove_complete)
         else:
             self.hidden = True
@@ -75,7 +80,7 @@ class ProjectView(tk.Frame):
 
     def update_name_not_complete(self):
         ''' '''
-        self._name.config(bg=self._the_og_bg)
+        self._name.config(fg=self._the_og_fg)
         self._name.bind('<Double-Button-1>', self.complete)
 
     def remove_complete(self, event=None):
