@@ -145,9 +145,9 @@ class ProjectEditor(tk.Frame):
     def _create_entries(self):
         ''' '''
         self._entries = {}
-        for index, value in enumerate(['name', 'details', 'due_date',
+        for index, value in enumerate(['name', 'sub_projects','details', 'due_date',
                                        'precursors', 'duration',
-                                       'scheduled_time', 'sub_projects',
+                                       'scheduled_time', 
                                        'completion_date']):
             text = value.replace('_', ' ')
             self._entries[value] = LabelEntry(self,
