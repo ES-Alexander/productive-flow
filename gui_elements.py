@@ -114,6 +114,14 @@ class ProjectEditor(tk.Frame):
         for name in data:
             self._entries[name].set(data[name])
 
+    def set_edit_mode(self, data):
+        ''' '''
+        self.display_selection_data(data)
+
+    def set_add_mode(self, name):
+        ''' '''
+        pass
+
     def _initialise_bindings(self):
         ''' '''
         self._bindings = {
@@ -145,12 +153,13 @@ class ProjectEditor(tk.Frame):
             self._entries[value] = LabelEntry(self,
                                               dict(text=text, anchor='e'),
                                               row=index+1)
+        self._button_row = index+1
 
     def _create_buttons(self):
         ''' '''
         self._submit_button = tk.Button(self, text='submit',
                                         command=self._submit_binding)
-        self._submit_button.grid(column=1, sticky='news')
+        self._submit_button.grid(row=self._button_row, column=1, sticky='news')
 
     def _submit_binding(self, event=None):
         ''' '''
@@ -204,6 +213,11 @@ class ProjectsDisplay(tk.Frame):
 
 class MainView(tk.Frame):
     ''' '''
+    # modification modes
+    ADD_MODE  = 'add'
+    EDIT_MODE = 'edit'
+    MOVE_MODE = 'move'
+
     def __init__(self, master, main_project, **kwargs):
         ''' '''
         super().__init__(master, **kwargs)
@@ -249,15 +263,20 @@ class MainView(tk.Frame):
         # currently based on just if a project has sub-projects
         return bool(project.sub_projects)
 
-    def _set_focus(self, project):
+    def _set_focus(self, project, mode=None):
         ''' '''
         self._focus_project = project
         # TODO handle project_editor display
         if self._focus_project == self._main_project:
-            pass # 'add' mode to main, disable 'edit' button?
+            self._mode = self.ADD_MODE
         else:
-            pass # 'edit' mode? 'add' mode?
-        self._project_editor.display_selection_data(project.get_properties())
+            self._mode = mode or self.EDIT_MODE
+
+        if self._mode == self.ADD_MODE:
+            self._project_editor.set_edit_mode(project.get_properties())
+        elif self._mode == self.EDIT_MODE:
+            self._project_editor.set_add_mode(project.name)
+        # else MOVE_MODE, so no need to update editor
 
     def set_delete_binding(self):
         ''' '''
@@ -276,6 +295,7 @@ class MainView(tk.Frame):
             # else: display removal handled by ProjectView
 
             parent.remove_sub_project(removee)
+            parent.save()
             # set focus back to main project
             # TODO perhaps change this to next project down, or to parent?
             self._set_focus(self._main_project)
