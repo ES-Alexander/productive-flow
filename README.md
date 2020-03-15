@@ -2,7 +2,7 @@
 An application for guided and encouraged productivity
 
 ## About
-Developed by me and my brother to combine a set of productivity resources in a meaningful and usable way, 
+Developed by my brother and me to combine a set of productivity resources in a meaningful and usable way, 
 providing as much guidance as needed to get you working on your most important projects, or planning them
 effectively if you need a better idea of what to do next.
 
