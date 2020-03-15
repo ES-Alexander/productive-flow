@@ -172,10 +172,10 @@ class Project(object):
             return datetime.strftime(date, '%d/%b @%H:%M')
         if diff < timedelta(days=-1): # Last Ddd @hh:mm
             return datetime.strftime(date, 'Last %a @%H:%M')
-        if diff < timedelta(days=0): # Yesterday @hh:mm
-            return datetime.strftime(date, 'Yesterday @%H:%M')
         date_date = date.date()
         todate = datetime.today().date()
+        if date_date < todate: # Yesterday @hh:mm
+            return datetime.strftime(date, 'Yesterday @%H:%M')
         if date_date == todate: # Today @hh:mm
             return datetime.strftime(date, 'Today @%H:%M')
         if date_date - todate == timedelta(days=1): # Tomorrow @hh:mm
