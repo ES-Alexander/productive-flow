@@ -12,15 +12,18 @@ HEADING_FONT = ('Helvetica', 16, 'bold')
 
 class ProjectView(tk.Frame):
     ''' The basic display of a project. '''
-    def __init__(self, master, project, default_show=True, show_complete=True,
-                 **kwargs):
+    def __init__(self, master, project, focus_binding, default_show=True,
+                 show_complete=True, **kwargs):
         ''' '''
         super().__init__(master, **kwargs)
         self._master = master
         self._project = project
+        self._focus_binding = focus_binding
 
         self._name = tk.Label(self, text=self._project.name, anchor=tk.W)
         self._name.grid(row=0, column=1, sticky='w')
+        self._name.bind('<Button-1>',
+                        lambda event: self._focus_binding(self._project))
         self._the_og_bg = self._name.cget('background')
 
         self._show_complete = show_complete
@@ -37,7 +40,7 @@ class ProjectView(tk.Frame):
 
         if self._project.sub_projects:
             self._sub_projects = ProjectsDisplay(self,
-                    self._project.sub_projects.values(),
+                    self._project.sub_projects.values(), self._focus_binding,
                     show_complete=self._show_complete)
             self._minimise = tk.Label(self, cursor=CLICK_CURSOR)
             self._minimise.grid(row=0, column=0, sticky='n')
@@ -57,10 +60,17 @@ class ProjectView(tk.Frame):
             if not self._init:
                 self.grid_remove()
 
+    def _save_update(self):
+        ''' Saves the stored project and refreshes its focus. '''
+        self._project.save()
+        # toggle focus off then back on refreshed
+        for toggle in range(2):
+            self._focus_binding(self._project)
+
     def complete(self, event=None):
         ''' Binding for completion of the Project. '''
         self._project.set_complete()
-        self._project.save()
+        self._save_update()
         self.update_name_complete()
 
     def update_name_not_complete(self):
@@ -72,7 +82,7 @@ class ProjectView(tk.Frame):
         ''' Remove complete status from Project. '''
         self._project.complete = False
         self._project.completion_date = None
-        self._project.save()
+        self._save_update()
         self.update_name_not_complete()
 
     def minimise(self, event=None):
@@ -89,6 +99,10 @@ class ProjectView(tk.Frame):
 
 class ProjectEditor(tk.Frame):
     ''' A widget to edit and create Project instances. '''
+    # title formats
+    ADD_FORMAT  = 'Adding to {!r} Project'
+    EDIT_FORMAT = 'Editing {!r} Project'
+
     def __init__(self, master, **kwargs):
         ''' '''
         super().__init__(master, **kwargs)
@@ -116,11 +130,20 @@ class ProjectEditor(tk.Frame):
 
     def set_edit_mode(self, data):
         ''' '''
+        self._title.set_format_string(self.EDIT_FORMAT)
+        self._title.set(data['name'])
         self.display_selection_data(data)
 
     def set_add_mode(self, name):
         ''' '''
-        pass
+        self._title.set_format_string(self.ADD_FORMAT)
+        self._title.set(name)
+        self._clear()
+
+    def _clear(self):
+        ''' '''
+        for entry in self._entries.values():
+            entry.clear()
 
     def _initialise_bindings(self):
         ''' '''
@@ -137,10 +160,9 @@ class ProjectEditor(tk.Frame):
 
     def _create_title(self):
         ''' '''
-        self._title = FormattedStringVar(format_str='Add to {!r}')
+        self._title = FormattedStringVar()
         tk.Label(self, textvariable=self._title, font=HEADING_FONT).grid(
                 columnspan=2)
-        self._title.set("to do")
 
     def _create_entries(self):
         ''' '''
@@ -170,11 +192,12 @@ class ProjectEditor(tk.Frame):
 
 class ProjectsDisplay(tk.Frame):
     ''' A display element for a collection of ProjectViews. '''
-    def __init__(self, master, projects, title=None, show_complete=True,
-                 **kwargs):
+    def __init__(self, master, projects, focus_binding, title=None,
+                 show_complete=True, **kwargs):
         ''' '''
         super().__init__(master, **kwargs)
         self._master = master
+        self._focus_binding = focus_binding
         self._show_complete = show_complete
 
         if title:
@@ -192,7 +215,8 @@ class ProjectsDisplay(tk.Frame):
         ''' Add a Project to the display. '''
         self._projects.append(project)
         project_view = ProjectView(self, project,
-                                   show_complete=self._show_complete)
+                                   show_complete=self._show_complete,
+                                   focus_binding=self._focus_binding)
         self.add_project_view(project_view)
 
     def add_project_view(self, project_view, project=None):
@@ -231,9 +255,9 @@ class MainView(tk.Frame):
         # creation
         display = dict(bd=1, relief=tk.RAISED)
         self._planned_display = ProjectsDisplay(self, self._planned,
-                                                'planned to do', **display)
+                self.focus_binding, 'planned to do', **display)
         self._unordered_display = ProjectsDisplay(self, self._unordered,
-                                                  'to do', **display)
+                self.focus_binding, 'to do', **display)
         self._project_editor = ProjectEditor(self, **display)
 
         # layout
@@ -242,9 +266,10 @@ class MainView(tk.Frame):
         self._project_editor.grid(row=1, column=1, sticky='news')
 
         # connection
-        self.set_submit_binding()
+        self._set_bindings()
 
         # post setup
+        self._focus_project = None
         self._set_focus(self._main_project)
 
     def _sort_projects(self):
@@ -264,6 +289,10 @@ class MainView(tk.Frame):
 
     def _set_focus(self, project, mode=None):
         ''' '''
+        if project == self._focus_project and \
+           (mode is None or mode == self._mode):
+            project = self._main_project # restore focus to main project
+
         self._focus_project = project
         # TODO handle project_editor display
         if self._focus_project == self._main_project:
@@ -271,13 +300,33 @@ class MainView(tk.Frame):
         else:
             self._mode = mode or self.EDIT_MODE
 
-        if self._mode == self.ADD_MODE:
+        if self._mode == self.EDIT_MODE:
             self._project_editor.set_edit_mode(project.get_properties())
-        elif self._mode == self.EDIT_MODE:
+        elif self._mode == self.ADD_MODE:
             self._project_editor.set_add_mode(project.name)
         # else MOVE_MODE, so no need to update editor
 
-    def set_delete_binding(self):
+    def _set_bindings(self):
+        ''' '''
+        self._set_submit_binding()
+        self._set_delete_binding()
+        #self._set_focus_binding()
+
+    def focus_binding(self, project):
+        self._set_focus(project, mode=self.EDIT_MODE)
+
+    """
+    def _set_focus_binding(self):
+        ''' '''
+        def focus_binding(project):
+            ''' '''
+            self._set_focus(project, mode=self.EDIT_MODE)
+
+        self._planned_display.set_focus_binding(focus_binding)
+        self._unordered_display.set_focus_binding(focus_binding)
+    """
+
+    def _set_delete_binding(self):
         ''' '''
         def delete_binding(event=None):
             ''' '''
@@ -301,7 +350,7 @@ class MainView(tk.Frame):
 
         self._project_editor.set_binding('delete', delete_binding)
 
-    def set_submit_binding(self):
+    def _set_submit_binding(self):
         ''' '''
         def submit_binding(event=None):
             ''' '''
