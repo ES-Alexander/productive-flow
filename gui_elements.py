@@ -145,15 +145,14 @@ class ProjectEditor(tk.Frame):
     def _create_entries(self):
         ''' '''
         self._entries = {}
-        for index, value in enumerate(['name', 'sub_projects','details', 'due_date',
-                                       'precursors', 'duration',
-                                       'scheduled_time', 
-                                       'completion_date']):
+        for index, value in enumerate(['name', 'sub_projects','details',
+                                       'due_date', 'precursors', 'duration',
+                                       'scheduled_time', 'completion_date']):
             text = value.replace('_', ' ')
             self._entries[value] = LabelEntry(self,
                                               dict(text=text, anchor='e'),
                                               row=index+1)
-        self._button_row = index+1
+        self._button_row = index+2
 
     def _create_buttons(self):
         ''' '''
