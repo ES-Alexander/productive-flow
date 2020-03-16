@@ -105,10 +105,10 @@ class ProjectView(tk.Frame):
 class ProjectEditor(tk.Frame):
     ''' A widget to edit and create Project instances. '''
     # title formats
-    ADD_FORMAT  = 'Adding to {!r}'
-    EDIT_FORMAT = 'Editing {!r}'
-    ADD_MODE    = '++'
-    EDIT_MODE   = '\u21e6'
+    ADD_FORMAT     = 'Adding to {!r}'
+    EDIT_FORMAT    = 'Editing {!r}'
+    GOTO_ADD_MODE  = '++'
+    GOTO_EDIT_MODE = '\u21e6'
 
     def __init__(self, master, **kwargs):
         ''' '''
@@ -135,17 +135,37 @@ class ProjectEditor(tk.Frame):
         for name in data:
             self._entries[name].set(data[name])
 
-    def set_edit_mode(self, data):
+    def set_edit_mode(self, new_project=None):
         ''' '''
         self._title.set_format_string(self.EDIT_FORMAT)
-        self._title.set(data['name'])
-        self.display_selection_data(data)
+        if new_project:
+            self._project = new_project
+            self._title.set(new_project.name)
 
-    def set_add_mode(self, name):
+        self.display_selection_data(self._project.get_properties())
+
+        self._add_mode_button.config(text=self.GOTO_ADD_MODE)
+        self._add_mode_button.grid()
+        self._submit_button.grid_remove()
+        self._delete_button.grid()
+
+    def set_add_mode(self, name=None):
         ''' '''
-        self._title.set_format_string(self.ADD_FORMAT)
-        self._title.set(name)
+        # update title
+        if name == '_main':
+            self._title.set_format_string('{}')
+            self._title.set('Add Project')
+            self._add_mode_button.grid_remove()
+        else:
+            self._title.set_format_string(self.ADD_FORMAT)
+            if name:
+                self._title.set(name)
+        # clear entries
         self._clear()
+        # update buttons
+        self._add_mode_button.config(text=self.GOTO_EDIT_MODE)
+        self._submit_button.grid()
+        self._delete_button.grid_remove()
 
     def _clear(self):
         ''' '''
@@ -190,25 +210,21 @@ class ProjectEditor(tk.Frame):
         ''' '''
         self._button_frame = tk.Frame(self)
         self._submit_button = tk.Button(self._button_frame, text='\u2713',
-                                        fg='#003300', command=self._submit_binding)
+                fg='#006600', command=self._submit_binding)
         self._delete_button = tk.Button(self._button_frame, text='delete',
-                                        fg='#330000', command=self._delete_binding)
-        self._add_button_text = ''
-        self._add_mode_button = tk.Button(self._button_frame,
-                                          text=self._add_button_text,
+                fg='#660000', command=self._delete_binding)
+        self._add_mode_button = tk.Button(self._button_frame, text='',
                                           command=self._add_binding)
-        self._add_binding()
-
 
         self._button_frame.grid(sticky='ew')
         self._submit_button.grid(row=0, column=2, sticky='e')
         self._delete_button.grid(row=0, column=1, sticky='e')
         self._add_mode_button.grid(row=0, column=0, sticky='w')
+        self._add_binding()
 
     def _submit_binding(self, event=None):
         ''' '''
         self._bindings['submit'](event)
-
 
     def _delete_binding(self, event=None):
         ''' '''
@@ -218,18 +234,11 @@ class ProjectEditor(tk.Frame):
         ''' '''
         if event:
             self._bindings['add'](event)
-        if self._add_button_text == self.ADD_MODE:
-            self._add_button_text = self.EDIT_MODE
-            self._submit_button.grid_remove()
-            self._delete_button.grid()
+
+        if self._add_mode_button.cget('text')  == self.GOTO_EDIT_MODE:
+            self.set_edit_mode()
         else:
-            self._add_button_text = self.ADD_MODE
-            self._submit_button.grid()
-            self._delete_button.grid_remove()
-
-
-        self._add_mode_button.config(text=self._add_button_text)
-
+            self.set_add_mode()
 
     def set_binding(self, name, func):
         ''' Sets 'func' as the binding accessed by 'name'. '''
@@ -273,7 +282,7 @@ class ProjectsDisplay(tk.Frame):
         self._project_views.append(project_view)
 
     def remove_project(self, project):
-        ''' Remove and return a ProejctView from the display. '''
+        ''' Remove and return a ProjectView from the display. '''
         for project_view in self._project_views:
             if project_view._project is project:
                 project_view.grid_remove()
@@ -346,9 +355,9 @@ class MainView(tk.Frame):
             self._mode = mode or self.EDIT_MODE
 
         if self._mode == self.EDIT_MODE:
-            self._project_editor.set_edit_mode(project.get_properties())
+            self._project_editor.set_edit_mode(project)
         elif self._mode == self.ADD_MODE:
-            self._project_editor.set_add_mode(project.name)
+            self._project_editor.set_add_mode(project)
         # else MOVE_MODE, so no need to update editor
 
     def _set_bindings(self):
@@ -365,6 +374,7 @@ class MainView(tk.Frame):
         ''' '''
         def submit_binding(event=None):
             ''' '''
+            # TODO update for adding to not main, and editing
             already_planned = self._project_planned(self._focus_project)
 
             # create a new project from the submission
