@@ -28,7 +28,7 @@ class ProjectView(tk.Frame):
     ''' The basic display of a project and its sub-projects. '''
     def __init__(self, master, project, bindings, default_show=True,
                  show_complete=True, **kwargs):
-        ''' '''
+        ''' Create a ProjectView for the given Project. '''
         super().__init__(master, **kwargs)
         self._master        = master
         self._project       = project
@@ -43,7 +43,7 @@ class ProjectView(tk.Frame):
         self._add_bindings()
 
     def _create_display(self):
-        ''' '''
+        ''' Create the display elements of this view. '''
         self._display_name()
         self._display_due_date()
         self._display_sub_projects()
@@ -61,7 +61,7 @@ class ProjectView(tk.Frame):
             self.update_name_not_complete()
 
     def _display_due_date(self):
-        ''' Display this project's due date, if applicable. '''
+        ''' Display the Project's due date, if applicable. '''
         due_date = self._project.get_due_date_str()
         self._due_date = tk.Label(self, text=self._project.get_due_date_str())
         if due_date:
@@ -151,7 +151,7 @@ class ProjectEditor(tk.Frame):
     GOTO_EDIT_MODE = '\u21e6'
 
     def __init__(self, master, bindings, **kwargs):
-        ''' '''
+        ''' Create a ProjectEditor widget within master. '''
         super().__init__(master, **kwargs)
         self._master = master
         self._bindings = bindings
@@ -159,13 +159,13 @@ class ProjectEditor(tk.Frame):
         self._create_display()
 
     def _create_display(self):
-        ''' '''
+        ''' Create and set up the relevant display widgets. '''
         self._create_title()
         self._create_fields()
         self._create_buttons()
 
     def _create_title(self):
-        ''' '''
+        ''' Create the title widget. '''
         title_frame = tk.Frame(self)
         title_frame.grid(columnspan=2)
         self._title = FormattedStringVar()
@@ -176,7 +176,7 @@ class ProjectEditor(tk.Frame):
         self._title_label.grid(row=0)
 
     def _create_fields(self):
-        ''' '''
+        ''' Create the Project parameter fields, for adding/editing. '''
         self._entries = {}
         for index, value in enumerate(['name', 'details', 'sub_projects',
                                        'due_date', 'precursors', 'duration',
@@ -190,7 +190,7 @@ class ProjectEditor(tk.Frame):
                                       self._bindings[DELETE_BIND])
 
     def _create_buttons(self):
-        ''' '''
+        ''' Create the buttons to add/delete a project, or change mode. '''
         self._button_frame = tk.Frame(self)
         self._submit_button = BetterButton(self._button_frame, text='\u2713',
                 fg='#006600', command=self._bindings[SUBMIT_BIND])
@@ -205,7 +205,7 @@ class ProjectEditor(tk.Frame):
         self._add_mode_button.grid(row=0, column=0, sticky='w')
 
     def get_submission_results(self):
-        ''' '''
+        ''' Extract and return the results of all the data fields. '''
         submission_results = {}
         for name in self._entries:
             entry = self._entries[name]
@@ -216,12 +216,12 @@ class ProjectEditor(tk.Frame):
         return submission_results
 
     def display_selection_data(self, data):
-        ''' '''
+        ''' Display 'data' in the data fields. '''
         for name in data:
             self._entries[name].set(data[name])
 
     def set_edit_mode(self, new_project=None):
-        ''' '''
+        ''' Enter edit mode for the given project, or the current one. '''
         self._title.set_format_string(self.EDIT_FORMAT)
         if new_project:
             self._project = new_project
@@ -235,7 +235,7 @@ class ProjectEditor(tk.Frame):
         self._delete_button.grid()
 
     def set_add_mode(self, name=None):
-        ''' '''
+        ''' Enter add mode, adding to 'name' project. '''
         # update title
         if name == MAIN_NAME:
             self._title.set_format_string('{}')
@@ -253,7 +253,7 @@ class ProjectEditor(tk.Frame):
         self._delete_button.grid_remove()
 
     def _clear(self):
-        ''' '''
+        ''' Clear all data fields. '''
         for entry in self._entries.values():
             entry.clear()
 
@@ -262,7 +262,7 @@ class ProjectsDisplay(tk.Frame):
     ''' A display element for a collection of ProjectViews. '''
     def __init__(self, master, projects, bindings, title=None,
                  show_complete=True, **kwargs):
-        ''' '''
+        ''' Create a display widget for the given projects. '''
         super().__init__(master, **kwargs)
         self._master = master
         self._bindings = bindings
@@ -305,14 +305,14 @@ class ProjectsDisplay(tk.Frame):
 
 
 class MainView(tk.Frame):
-    ''' '''
+    ''' The main view element, initialising and containing all others. '''
     # modification modes
     ADD_MODE  = 'add'
     EDIT_MODE = 'edit'
     MOVE_MODE = 'move'
 
     def __init__(self, master, main_project, **kwargs):
-        ''' '''
+        ''' Create a set up the view elements. '''
         super().__init__(master, **kwargs)
         self._master = master
         self._main_project = main_project
@@ -384,15 +384,15 @@ class MainView(tk.Frame):
         # else MOVE_MODE, so no need to update editor
 
     def _focus_binding(self, project):
-        ''' '''
+        ''' The binding used to set focus to a given project. '''
         self._set_focus(project, mode=self.EDIT_MODE)
 
     def _restore_binding(self, event=None):
-        ''' '''
+        ''' The binding used to restore focus to the main project. '''
         self._set_focus(self._main_project)
 
     def _add_binding(self, event=None):
-        ''' '''
+        ''' The binding used to set the mode of the editor. '''
         if self._mode == self.ADD_MODE:
             mode = self.EDIT_MODE
         else:
@@ -401,8 +401,8 @@ class MainView(tk.Frame):
         self._set_focus(self._focus_project, mode)
 
     def _submit_binding(self, event=None):
-        ''' '''
-        # TODO update for adding to not main, and editing
+        ''' The binding used to submit the editor data-field values. '''
+        # TODO update for editing
         already_planned = self._project_planned(self._focus_project)
 
         # create a new project from the submission
@@ -425,7 +425,7 @@ class MainView(tk.Frame):
                 self._unordered_display.add_project(new_proj)
 
     def _delete_binding(self, event=None):
-        ''' '''
+        ''' The binding used to delete the in-focus Project. '''
         removee = self._focus_project
         parent = removee._parent
 
@@ -444,6 +444,5 @@ class MainView(tk.Frame):
 
         parent.remove_sub_project(removee)
         parent.save()
-        # set focus back to main project
-        # TODO perhaps change this to next project down, or to parent?
-        self._set_focus(self._main_project)
+        # set focus back to main parent of deleted project
+        self._set_focus(parent)

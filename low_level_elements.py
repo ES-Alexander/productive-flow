@@ -9,7 +9,6 @@ class LabelEntry(object):
         '''
         'label_kwargs' is a dict passed to the internal Label widget
         'entry_kwargs' is a dict passed to the internal Entry widget
-        'kwargs' are passed to the overarching Frame widget
         '''
         self._master = master
         self._label = tk.Label(self._master, **label_kwargs)
@@ -58,27 +57,27 @@ class FormattedStringVar(tk.StringVar):
 
     @_value_changer
     def set_format_string(self, format_str):
-        ''' '''
+        ''' Set the internal format string. Overrides prefix/suffix. '''
         self._format_str = format_str
 
     @_value_changer
     def set_prefix(self, prefix):
-        ''' '''
+        ''' Set the prefix added to the stored value (unless overriden). '''
         self._prefix = prefix
 
     @_value_changer
     def set_suffix(self, suffix):
-        ''' '''
+        ''' Set the suffix added to the stored value (unless overriden). '''
         self._suffix = suffix
 
     @_value_changer
     def set_format(self, prefix='', suffix=''):
-        ''' '''
+        ''' Set the prefix and suffix added to the value (unless overriden). '''
         self._prefix = prefix
         self._suffix = suffix
 
     def set(self, value):
-        ''' '''
+        ''' Set the stored value and update the display. '''
         self._value = value
         if self._format_str:
             output = self._format_str.format(self._value)
@@ -87,12 +86,12 @@ class FormattedStringVar(tk.StringVar):
         super().set(output)
 
     def get(self):
-        ''' '''
+        ''' Get the currently stored value. '''
         return self._value
 
 
 class BetterButton(tk.Button):
-    ''' A button which is invoked when return is pressed while in focus. '''
+    ''' A button which is invoked when 'Enter' is pressed while in focus. '''
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.bind('<Return>', lambda e: self.invoke())
