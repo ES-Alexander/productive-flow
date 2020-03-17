@@ -8,7 +8,7 @@ class Controller(object):
     def __init__(self, **kwargs):
         ''' '''
         self._root = tk.Tk()
-        self._project = Project('_main')
+        self._project = Project(MAIN_NAME)
         self._view = MainView(self._root, self._project, **kwargs)
         self._view.grid(sticky='news')
 
