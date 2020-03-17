@@ -4,7 +4,7 @@ from project import Project
 import os, sys
 
 argc = len(sys.argv)
-name = 'main'
+name = '_main'
 path = 'projects'
 if argc > 1:
     name = sys.argv[1]
