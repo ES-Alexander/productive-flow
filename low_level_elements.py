@@ -87,5 +87,8 @@ class FormattedStringVar(tk.StringVar):
         return self._value
 
 
-
-
+class BetterButton(tk.Button):
+    ''' A button which is invoked when return is pressed while in focus. '''
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.bind('<Return>', lambda e: self.invoke())

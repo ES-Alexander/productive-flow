@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
-from low_level_elements import * # tk, LabelEntry, FormattedStringVar
+# tk, LabelEntry, FormattedStringVar, BetterButton
+from low_level_elements import *
 
 from sys import platform
 if platform.startswith('darwin'):
@@ -175,7 +176,7 @@ class ProjectEditor(tk.Frame):
     def _create_fields(self):
         ''' '''
         self._entries = {}
-        for index, value in enumerate(['name', 'sub_projects','details',
+        for index, value in enumerate(['name', 'details', 'sub_projects',
                                        'due_date', 'precursors', 'duration',
                                        'scheduled_time', 'completion_date']):
             text = value.replace('_', ' ')
@@ -185,11 +186,11 @@ class ProjectEditor(tk.Frame):
     def _create_buttons(self):
         ''' '''
         self._button_frame = tk.Frame(self)
-        self._submit_button = tk.Button(self._button_frame, text='\u2713',
+        self._submit_button = BetterButton(self._button_frame, text='\u2713',
                 fg='#006600', command=self._bindings[SUBMIT_BIND])
-        self._delete_button = tk.Button(self._button_frame, text='X',
+        self._delete_button = BetterButton(self._button_frame, text='X',
                 fg='#660000', command=self._bindings[DELETE_BIND])
-        self._add_mode_button = tk.Button(self._button_frame, text='',
+        self._add_mode_button = BetterButton(self._button_frame, text='',
                                           command=self._bindings[ADD_BIND])
 
         self._button_frame.grid(sticky='ew')
@@ -340,6 +341,7 @@ class MainView(tk.Frame):
         # post setup
         self._focus_project = None
         self._set_focus(self._main_project)
+        self.bind('<Escape>', lambda e: self._set_focus(self._main_project))
 
     def _sort_projects(self):
         ''' Sort the projects in MAIN_NAME into 'planned' and 'unordered'. '''
