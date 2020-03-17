@@ -6,8 +6,10 @@ from low_level_elements import *
 from sys import platform
 if platform.startswith('darwin'):
     CLICK_CURSOR = 'pointinghand'
+    CTRL = lambda key: '<Command-{}>'.format(key)
 else:
     CLICK_CURSOR = 'double_arrow'
+    CTRL = lambda key: '<Control-{}>'.format(key)
 
 HEADING_FONT = ('Helvetica', 16, 'bold')
 
@@ -182,6 +184,10 @@ class ProjectEditor(tk.Frame):
             text = value.replace('_', ' ')
             self._entries[value] = \
                     LabelEntry(self, dict(text=text, anchor='e'), row=index+1)
+            self._entries[value].bind(CTRL('Return'),
+                                      self._bindings[SUBMIT_BIND])
+            self._entries[value].bind(CTRL('BackSpace'),
+                                      self._bindings[DELETE_BIND])
 
     def _create_buttons(self):
         ''' '''
@@ -422,6 +428,10 @@ class MainView(tk.Frame):
         ''' '''
         removee = self._focus_project
         parent = removee._parent
+
+        if not parent:
+            return # don't try to delete main
+
         if parent == self._main_project:
             # remove from planned/unordered
             if self._project_planned(removee):

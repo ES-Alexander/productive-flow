@@ -35,6 +35,10 @@ class LabelEntry(object):
         ''' Clear the text of the internal Entry widget. '''
         self._entry.delete(0, tk.END)
 
+    def bind(self, *args, **kwargs):
+        ''' Bind the entry widget as specified. '''
+        self._entry.bind(*args, **kwargs)
+
 class FormattedStringVar(tk.StringVar):
     ''' StringVar with optional constant text. '''
     def __init__(self, prefix='', suffix='', format_str='', **kwargs):
