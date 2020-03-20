@@ -3,6 +3,7 @@
 # tk, LabelEntry, FormattedStringVar, BetterButton
 from low_level_elements import *
 
+# relevant global GUI element and binding variables
 from sys import platform
 if platform.startswith('darwin'):
     CLICK_CURSOR = 'pointinghand'
@@ -13,7 +14,8 @@ else:
 
 HEADING_FONT = ('Helvetica', 16, 'bold')
 
-MAIN_NAME = '_main'
+MAIN_NAME = '_main' # the intended project to run from
+
 
 # binding keys
 ADD_BIND     = 'add'
@@ -23,15 +25,50 @@ SUBMIT_BIND  = 'submit'
 RESTORE_BIND = 'restore'
 
 
+class ProjectViewBase(tk.Frame):
+    ''' The base class for displaying a Project and its Sub-Projects.
 
-class ProjectView(tk.Frame):
+    While some methods are populated, this class is intended to be abstract
+    and should not be initialised directly. Create instances from the
+    MainView and ProjectView concrete sub-classes.
+
+    '''
+    def __init__(self, master, project, **kwargs):
+        ''' Initialise the underlying frame and store the project. '''
+        super().__init__(master, **kwargs)
+        self._master = master
+        self._project = project
+
+    @property
+    def _parent(self):
+        ''' Set _parent as an alias of _master. '''
+        return self._master
+
+    def _create_display(self):
+        ''' Initialise the display of this view element. '''
+        pass
+
+    def update_project(self, **params):
+        ''' Edit the internal project parameters. '''
+        pass
+
+    def remove_sub_project(self, project_view):
+        ''' Remove and return a ProjectView from the display. '''
+        pass
+
+    def create_sub_project(self, **params):
+        ''' Create and return a sub-project with given parameters. '''
+        new_proj = self._project.create_sub_project(**params)
+        self._project.save()
+        return new_proj
+
+
+class ProjectView(ProjectViewBase):
     ''' The basic display of a project and its sub-projects. '''
     def __init__(self, master, project, bindings, default_show=True,
                  show_complete=True, **kwargs):
         ''' Create a ProjectView for the given Project. '''
-        super().__init__(master, **kwargs)
-        self._master        = master
-        self._project       = project
+        super().__init__(master, project, **kwargs)
         self._bindings      = bindings
 
         self._show_complete = show_complete
@@ -54,6 +91,7 @@ class ProjectView(tk.Frame):
         self._name.grid(row=0, column=1, sticky='w')
         self._the_og_bg = self._name.cget('background')
         self._the_og_fg = self._name.cget('foreground')
+        self._in_focus = False
 
         if self._project.complete:
             self.update_name_complete(init=True)
@@ -87,11 +125,20 @@ class ProjectView(tk.Frame):
         ''' Add relevant bindings to this ProjectView. '''
         self.bind('<Button-1>', self._bindings[RESTORE_BIND])
         self._name.bind('<Button-1>',
-                        lambda event: self._bindings[FOCUS_BIND](self._project))
+                        lambda event: self._bindings[FOCUS_BIND](self))
         self._name.bind('<Enter>',
                         lambda event: self._name.config(bg='#eeeeee'))
         self._name.bind('<Leave>',
                         lambda event: self._name.config(bg=self._the_og_bg))
+
+    def _toggle_focus(self):
+        ''' '''
+        if self._in_focus:
+            self._in_focus = False
+            self._name.config(relief=tk.FLAT)
+        else:
+            self._in_focus = True
+            self._name.config(relief=tk.RIDGE)
 
     def update_name_complete(self, init=False):
         ''' Update name because project marked as complete. '''
@@ -137,8 +184,54 @@ class ProjectView(tk.Frame):
     def maximise(self, event=None):
         ''' Binding for showing this Project's sub-projects. '''
         self._minimise.config(text='-')
-        self._sub_projects.grid(row=1, column=1, columnspan=1)
+        self._sub_projects.grid(row=1, column=1, columnspan=1, sticky='w')
         self._minimise.bind('<Button-1>', self.minimise)
+
+
+class ProjectsDisplay(tk.Frame):
+    ''' A display element for a collection of ProjectViews. '''
+    def __init__(self, master, projects, bindings, title=None,
+                 show_complete=True, **kwargs):
+        ''' Create a display widget for the given projects. '''
+        super().__init__(master, **kwargs)
+        self._master = master
+        self._bindings = bindings
+        self._show_complete = show_complete
+
+        if title:
+            self._title = tk.Label(self, text=title, font=HEADING_FONT)
+            self._title.grid(sticky='ew')
+
+        self.bind('<Button-1>', self._bindings[RESTORE_BIND])
+
+        self._projects = []
+        self._project_views = []
+        for project in projects:
+            self.add_project(project)
+
+        # TODO scrollbars
+
+    def add_project(self, project):
+        ''' Add a Project to the display. '''
+        self._projects.append(project)
+        project_view = ProjectView(self, project, bindings=self._bindings,
+                                   show_complete=self._show_complete)
+        self.add_project_view(project_view)
+
+    def add_project_view(self, project_view, project=None):
+        ''' Add a ProjectView to the display. '''
+        if project:
+            self._projects.append(project)
+        if not project_view.hidden:
+            project_view.grid(sticky='w')
+        self._project_views.append(project_view)
+
+    def remove_project(self, project):
+        ''' Remove and return a ProjectView from the display. '''
+        for project_view in self._project_views:
+            if project_view._project is project:
+                project_view.grid_remove()
+                return self._project_views.remove(project_view)
 
 
 class ProjectEditor(tk.Frame):
@@ -256,193 +349,3 @@ class ProjectEditor(tk.Frame):
         ''' Clear all data fields. '''
         for entry in self._entries.values():
             entry.clear()
-
-
-class ProjectsDisplay(tk.Frame):
-    ''' A display element for a collection of ProjectViews. '''
-    def __init__(self, master, projects, bindings, title=None,
-                 show_complete=True, **kwargs):
-        ''' Create a display widget for the given projects. '''
-        super().__init__(master, **kwargs)
-        self._master = master
-        self._bindings = bindings
-        self._show_complete = show_complete
-
-        if title:
-            self._title = tk.Label(self, text=title, font=HEADING_FONT)
-            self._title.grid(sticky='ew')
-
-        self.bind('<Button-1>', self._bindings[RESTORE_BIND])
-
-        self._projects = []
-        self._project_views = []
-        for project in projects:
-            self.add_project(project)
-
-        # TODO scrollbars
-
-    def add_project(self, project):
-        ''' Add a Project to the display. '''
-        self._projects.append(project)
-        project_view = ProjectView(self, project, bindings=self._bindings,
-                                   show_complete=self._show_complete)
-        self.add_project_view(project_view)
-
-    def add_project_view(self, project_view, project=None):
-        ''' Add a ProjectView to the display. '''
-        if project:
-            self._projects.append(project)
-        if not project_view.hidden:
-            project_view.grid(sticky=tk.W+tk.E)
-        self._project_views.append(project_view)
-
-    def remove_project(self, project):
-        ''' Remove and return a ProjectView from the display. '''
-        for project_view in self._project_views:
-            if project_view._project is project:
-                project_view.grid_remove()
-                return self._project_views.remove(project_view)
-
-
-class MainView(tk.Frame):
-    ''' The main view element, initialising and containing all others. '''
-    # modification modes
-    ADD_MODE  = 'add'
-    EDIT_MODE = 'edit'
-    MOVE_MODE = 'move'
-
-    def __init__(self, master, main_project, **kwargs):
-        ''' Create a set up the view elements. '''
-        super().__init__(master, **kwargs)
-        self._master = master
-        self._main_project = main_project
-
-        # pre-sorting of projects
-        self._planned = []
-        self._unordered = []
-        self._sort_projects()
-
-        # creation
-        display = dict(bd=1, relief=tk.RAISED)
-        display_bindings = {
-            FOCUS_BIND: self._focus_binding,
-            RESTORE_BIND: self._restore_binding,
-        }
-        editor_bindings = {
-            ADD_BIND: self._add_binding,
-            SUBMIT_BIND: self._submit_binding,
-            DELETE_BIND: self._delete_binding,
-        }
-        self._planned_display = ProjectsDisplay(self, self._planned,
-                display_bindings, 'planned to do', **display)
-        self._unordered_display = ProjectsDisplay(self, self._unordered,
-                display_bindings, 'to do', **display)
-        self._project_editor = ProjectEditor(self, editor_bindings, **display)
-
-        # layout
-        self._planned_display.grid(row=0, column=0, rowspan=2, sticky='news')
-        self._unordered_display.grid(row=0, column=1, sticky='news')
-        self._project_editor.grid(row=1, column=1, sticky='news')
-
-        # post setup
-        self._focus_project = None
-        self._set_focus(self._main_project)
-        self.bind('<Escape>', lambda e: self._set_focus(self._main_project))
-
-    def _sort_projects(self):
-        ''' Sort the projects in MAIN_NAME into 'planned' and 'unordered'. '''
-        for name in self._main_project.sub_projects:
-            project = self._main_project.sub_projects[name]
-            if self._project_planned(project):
-                self._planned.append(project)
-            else:
-                self._unordered.append(project)
-
-    @staticmethod
-    def _project_planned(project):
-        ''' Returns True if 'project' is classified as planned. '''
-        # currently based on just if a project has sub-projects
-        return bool(project.sub_projects)
-
-    def _set_focus(self, project, mode=None):
-        ''' Set focus on the specified project in 'mode' or edit mode. '''
-        if project == self._focus_project and \
-           (mode is None or mode == self._mode):
-            project = self._main_project # restore focus to main project
-
-        self._focus_project = project
-        # TODO handle project_editor display
-        if self._focus_project == self._main_project:
-            self._mode = self.ADD_MODE
-        else:
-            self._mode = mode or self.EDIT_MODE
-
-        if self._mode == self.EDIT_MODE:
-            self._project_editor.set_edit_mode(project)
-        elif self._mode == self.ADD_MODE:
-            self._project_editor.set_add_mode(project.name)
-        # else MOVE_MODE, so no need to update editor
-
-    def _focus_binding(self, project):
-        ''' The binding used to set focus to a given project. '''
-        self._set_focus(project, mode=self.EDIT_MODE)
-
-    def _restore_binding(self, event=None):
-        ''' The binding used to restore focus to the main project. '''
-        self._set_focus(self._main_project)
-
-    def _add_binding(self, event=None):
-        ''' The binding used to set the mode of the editor. '''
-        if self._mode == self.ADD_MODE:
-            mode = self.EDIT_MODE
-        else:
-            mode = self.ADD_MODE
-
-        self._set_focus(self._focus_project, mode)
-
-    def _submit_binding(self, event=None):
-        ''' The binding used to submit the editor data-field values. '''
-        # TODO update for editing
-        already_planned = self._project_planned(self._focus_project)
-
-        # create a new project from the submission
-        new_proj = self._focus_project.create_sub_project(
-                **self._project_editor.get_submission_results())
-        self._focus_project.save()
-
-        if not already_planned and \
-           self._project_planned(self._focus_project):
-            # planned now, so move appropriately
-            self._planned_display.add_project_view(
-                    project_view=self._unordered_display.remove_project(
-                    self._focus_project), project=self._focus_project)
-        elif self._focus_project == self._main_project:
-            if self._project_planned(new_proj):
-                self._planned.append(new_proj)
-                self._planned_display.add_project(new_proj)
-            else:
-                self._unordered.append(new_proj)
-                self._unordered_display.add_project(new_proj)
-
-    def _delete_binding(self, event=None):
-        ''' The binding used to delete the in-focus Project. '''
-        removee = self._focus_project
-        parent = removee._parent
-
-        if not parent:
-            return # don't try to delete main
-
-        if parent == self._main_project:
-            # remove from planned/unordered
-            if self._project_planned(removee):
-                self._planned.remove(removee)
-                self._planned_display.remove_project(removee)
-            else:
-                self._unordered.remove(removee)
-                self._unordered_display.remove_project(removee)
-        # else: display removal handled by ProjectView
-
-        parent.remove_sub_project(removee)
-        parent.save()
-        # set focus back to main parent of deleted project
-        self._set_focus(parent)
