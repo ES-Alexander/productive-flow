@@ -204,7 +204,7 @@ class Project(object):
     def get_scheduled_time_str(self):
         return self._get_time_str(self.scheduled_time)
 
-    def get_properties(self, constant=False):
+    def get_properties(self, constant=True):
         ''' Return a dictionary of string-equivalents of common properties. '''
         return dict(
             name = self.name,
