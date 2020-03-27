@@ -46,18 +46,16 @@ class Project(object):
 
         if os.path.isfile(self._save_file):
             # this Project has previously been saved
-            if not any([x in kwargs for x in \
-                        ['details', 'sub_projects', 'due_date',
-                         'completion_date', 'complete', 'duration',
-                         'scheduled_time', 'precursors']]):
-                # initialise from saved file
-                with open(self._save_file) as info:
-                    # insertion security risk - does it matter?
-                    file_data = eval('dict({})'.format(info.read()))
-                # use current input as default, file as old
-                file_data.update(kwargs)
-                kwargs = file_data
-                self._modified = False
+            #   -> initialise from saved file
+            with open(self._save_file) as info:
+                # insertion security risk - does it matter?
+                file_data = eval('dict({})'.format(info.read()))
+            old_data = file_data.copy()
+            # override file parameters with user inputs if applicable
+            # TODO decide if updates should immediately apply to file structure
+            file_data.update(kwargs)
+            kwargs = file_data
+            self._modified = file_data != old_data
 
         self.details           = kwargs.get('details', '')
         self.path              = path
@@ -77,9 +75,9 @@ class Project(object):
 
         # must occur after self._parent and paths initialised
         self.sub_projects = {}
-        self._load_sub_projects(kwargs.get('sub_projects', []))
+        self.load_sub_projects(kwargs.get('sub_projects', []))
         self.precursors   = {}
-        self._load_precursors(kwargs.get('precursors', []))
+        self.load_precursors(kwargs.get('precursors', []))
 
         if self._modified:
             self.save()
@@ -91,7 +89,7 @@ class Project(object):
             return func(self, *args, **kwargs)
         return func_wrapper
 
-    def _load_sub_projects(self, sub_projects):
+    def load_sub_projects(self, sub_projects):
         ''' Load 'sub_projects' into this Project.
 
         'sub_projects' are Projects which are a part of this Project.
@@ -117,7 +115,7 @@ class Project(object):
             if name not in self.sub_projects:
                 self.create_sub_project(name)
 
-    def _load_precursors(self, precursors):
+    def load_precursors(self, precursors):
         ''' Load this Project's precursors.
 
         'precursors' are Projects which must be completed before this Project
@@ -129,7 +127,7 @@ class Project(object):
 
         # pre-process a string of comma-separated names
         if isinstance(precursors, str):
-            precursorss = [proj.strip() for proj in precursors.split(',')]
+            precursors = [proj.strip() for proj in precursors.split(',')]
 
         for precursor in precursors:
             if isinstance(precursor, str):
@@ -140,8 +138,8 @@ class Project(object):
 
         if self._parent:
             for name in names:
-                if name in self._parent.precursors:
-                    self.add_precursor(self._parent.precursors[name],
+                if name in self._parent.sub_projects:
+                    self.add_precursor(self._parent.sub_projects[name],
                                        modifier=False)
                 else:
                     precursor = self.create_precursor(name)
@@ -163,7 +161,7 @@ class Project(object):
             return ''
         if constant:
             return datetime.strftime(date, cls.TIME_FORMAT)
-        # intelligent mode TODO check if logic (some should be days based)
+        # intelligent mode TODO check if logic
         diff = date - datetime.today()
         abs_diff = abs(diff)
         if abs_diff >= timedelta(days=365): # dd/Mmm/yyyy
@@ -218,6 +216,32 @@ class Project(object):
             sub_projects = ', '.join(self.sub_projects.keys()),
             completion_date = self.get_completion_date_str(constant),
         )
+
+    @__modifier
+    def update_params(self, **params):
+        ''' Update the parameters of self in bulk.
+
+        Quite inefficient if only updating one or two parameters.
+         -> preferable to use individual rename/update/set/load methods
+
+        'precursors' and 'sub_projects' params can currently only be used
+            for adding Projects, not renaming or removing them.
+
+        '''
+        new_name = params.get('name', self.name)
+        if new_name != self.name:
+            self.rename(new_name)
+        self.update_details(params.get('details', self.details))
+        self.set_due_date(params.get('due_date', self.due_date))
+        self.set_duration_estimate(params.get('duration', self.duration))
+        self.update_scheduled_time(params.get('scheduled_time',
+                                              self.scheduled_time))
+        completion_date = params.get('completion_date', self.completion_date)
+        if completion_date: self.set_complete(completion_date)
+        self.complete = params.get('complete', self.complete)
+
+        self.load_precursors(params.get('precursors', self.precursors))
+        self.load_sub_projects(params.get('sub_projects', self.sub_projects))
 
     @__modifier
     def rename(self, name):
@@ -317,7 +341,8 @@ class Project(object):
     def create_sub_project(self, name, **kwargs):
         ''' Create a new sub-project Project with given parameters. '''
         sub_project_file = self._sub_project_path + '/{}.txt'.format(name)
-        return self.add_sub_project(modifier=os.path.isfile(sub_project_file),
+        return self.add_sub_project(
+                modifier=not os.path.isfile(sub_project_file),
                 sub_project=Project(name, path=self._sub_project_path,
                                     parent=self, **kwargs))
 
@@ -328,7 +353,7 @@ class Project(object):
         Also removes the Project as a precursor to other projects, and deletes
             any files and directories belonging to the Project.
 
-        Raises an KeyError if sub_project is not a sub-project of self.
+        Raises a KeyError if sub_project is not a sub-project of self.
 
         '''
         name = sub_project.name
@@ -368,21 +393,24 @@ class Project(object):
 
     @__modifier
     def remove_precursor(self, name):
-        ''' '''
+        ''' Remove the precursor with the specified name. '''
         try:
             self.precursors.pop(name)
         except KeyError:
             print('{} is not a known precursor of {}.'.format(name, self.name))
 
-    def save(self, force=True):
+    def save(self, force=False):
         ''' Save the state of this Project and its sub_projects. '''
-        if self._modified or force:
+        if force or self._modified:
             save_out = self._gen_save_string()
             with open(self._save_file, 'w') as save_file:
                 save_file.write(save_out)
 
         for sub_project in self.sub_projects.values():
-            sub_project.save()
+            sub_project.save(force)
+
+        # no longer modified since last save
+        self._modified = False
 
     def _gen_save_string(self):
         ''' Generate a string version of self to save to file. '''
@@ -400,9 +428,9 @@ class Project(object):
         if self.complete:
             save_str += 'complete = True,\n'
         if self.duration:
-            save_str += 'duration = "{}h",\n'.format(self.get_duration_str())
+            save_str += 'duration = "{}",\n'.format(self.get_duration_str())
         if self.scheduled_time:
-            save_str += 'scheduled_time = "{}h",\n'.format(
+            save_str += 'scheduled_time = "{}",\n'.format(
                     self.get_scheduled_time_str())
         if self.precursors:
             save_str += 'precursors = ["{}"],\n'.format(

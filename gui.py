@@ -85,8 +85,10 @@ class MainView(ProjectViewBase):
         if (view is self and self._project is self._root_project) or \
            (view is self._focus_view and (mode is None or mode == self._mode)):
             # root project (only has add mode), or restoring 
-            # or restoring
             self._mode = self.ADD_MODE
+            if view is self._focus_view and view is not self and \
+               mode == self._mode:
+                view = self
         else:
             self._mode = mode or self.EDIT_MODE
 
@@ -119,63 +121,73 @@ class MainView(ProjectViewBase):
         self._set_focus(self._focus_view, mode)
 
     def _submit_binding(self, event=None):
-        ''' The binding used to submit the editor data-field values. '''
+        ''' The binding used to submit the editor data-field values.
+
+        DOES NOT MODIFY DISPLAY FOR CHANGED PRECURSORS/SUBPROJECTS/COMPLETION
+
+        '''
         # TODO update for editing
+        submission = self._project_editor.get_submission_results()
         if self._mode == self.ADD_MODE:
             focus_project = self._focus_view._project
-            general_project = focus_project in \
+            # check if adding to child of main (for planned/unplanned sorting)
+            is_general_project = focus_project in \
                     self._project.sub_projects.values()
-            if general_project:
+            if is_general_project:
                 already_planned = self._project_planned(focus_project)
 
-            # create a new project from the submission
-            new_project = self._focus_view.create_sub_project(
-                    **self._project_editor.get_submission_results())
+            # create (and display) a new project from the submission
+            self._focus_view.create_sub_project(**submission)
 
-            if general_project:
-                if not already_planned and \
-                   self._project_planned(focus_project):
-                    # planned now, so move appropriately
-                    self._planned_display.add_project_view(
-                            project_view=self._unordered_display.remove_project(
-                            focus_project), project=focus_project)
-                elif self._focus_view is self:
-                    if self._project_planned(new_proj):
-                        self._planned.append(new_proj)
-                        self._planned_display.add_project(new_proj)
-                    else:
-                        self._unordered.append(new_proj)
-                        self._unordered_display.add_project(new_proj)
-            else:
-                # not a direct sub-project of main, just create a project view
-                self._focus_view.add_project(new_proj)
+            # if adding to a currently unordered sub-project of main:
+            if is_general_project and not already_planned:
+                # planned now, so move appropriately
+                self._planned_display.add_project_view(
+                        self._unordered_display.remove_project_view(
+                            self._focus_view))
+
+            self._project_editor.clear()
+
         else: # mode == self.EDIT_MODE
-            self._focus_view.update_project(
-                    **self._project_editor.get_submission_results())
+            self._focus_view.update_project(**submission)
 
 
     def _delete_binding(self, event=None):
         ''' The binding used to delete the in-focus ProjectView. '''
         removee = self._focus_view
-        parent = removee._parent
 
-        if not isinstance(parent, ProjectsDisplay):
-            return # don't try to delete main
+        if removee is self:
+            print("Cannot delete main project") # SHOULDN'T BE REACHABLE
+            return
 
-        if parent == self:
-            # remove from planned/unordered
-            if self._project_planned(removee._project):
-                self._planned.remove(removee)
-                self._planned_display.remove_project(removee)
-            else:
-                self._unordered.remove(removee)
-                self._unordered_display.remove_project(removee)
-        # else: display removal handled by ProjectView
+        parent_view = removee._parent._master
+        if not parent_view is self and \
+           parent_view._parent._master is self and \
+           parent_view._sub_projects.num_projects == 1:
+            # removing only subproject of planned general project
+            #   -> move to unordered
+            self._unordered_display.add_project_view(
+                self._planned_display.remove_project_view(parent_view))
 
-        parent.remove_sub_project(removee)
-        parent.save()
-        # set focus back to main parent of deleted project
-        self._set_focus(parent)
+        parent_view.remove_sub_project(removee)
+        # set focus back to parent of deleted project
+        self._set_focus(parent_view)
+
+    def add_sub_project(self, project):
+        ''' Adds the given project to the relevant side of the display. '''
+        if self._project_planned(project):
+            self._planned_display.add_project(project)
+        else:
+            self._unordered_display.add_project(project)
+
+    def remove_sub_project(self, project_view):
+        ''' Remove and return a ProjectView from the display. '''
+        super().remove_sub_project(project_view)
+        # remove from planned/unordered
+        if self._project_planned(project_view._project):
+            return self._planned_display.remove_project_view(project_view)
+        else:
+            return self._unordered_display.remove_project_view(project_view)
 
 
 class Controller(object):

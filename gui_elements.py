@@ -44,23 +44,39 @@ class ProjectViewBase(tk.Frame):
         ''' Set _parent as an alias of _master. '''
         return self._master
 
+    def __save_project(func):
+        ''' A wrapper for functions which should save the internal project. '''
+        def func_wrapper(self, *args, **kwargs):
+            result = func(self, *args, **kwargs)
+            self._project.save()
+            return result
+        return func_wrapper
+
     def _create_display(self):
         ''' Initialise the display of this view element. '''
         pass
 
+    @__save_project
     def update_project(self, **params):
         ''' Edit the internal project parameters. '''
+        self._project.update_params(**params)
+
+    def add_sub_project(self, project):
+        ''' Adds the given project to the display. '''
         pass
 
+    @__save_project
     def remove_sub_project(self, project_view):
-        ''' Remove and return a ProjectView from the display. '''
-        pass
+        ''' Removes the given project from the stored project.
 
+        Subclass must: Remove and return a ProjectView from the display.
+        '''
+        self._project.remove_sub_project(project_view._project)
+
+    @__save_project
     def create_sub_project(self, **params):
-        ''' Create and return a sub-project with given parameters. '''
-        new_proj = self._project.create_sub_project(**params)
-        self._project.save()
-        return new_proj
+        ''' Create and display a sub-project with given parameters. '''
+        self.add_sub_project(self._project.create_sub_project(**params))
 
 
 class ProjectView(ProjectViewBase):
@@ -108,18 +124,34 @@ class ProjectView(ProjectViewBase):
     def _display_sub_projects(self):
         ''' Display minimisable sub-projects as applicable. '''
         if self._project.sub_projects:
-            self._sub_projects = ProjectsDisplay(self,
-                    self._project.sub_projects.values(), self._bindings,
-                    show_complete=self._show_complete)
-            self._minimise = tk.Label(self, cursor=CLICK_CURSOR)
-            self._minimise.grid(row=0, column=0, sticky='n')
-            self.maximise()
-            if not self._default_show:
-                self.minimise()
+            if hasattr(self, '_spacer'):
+                self._spacer.grid_remove()
+                del self._spacer
+            self._create_sub_project_display()
         else:
-            self._spacer = tk.Label(self, text=' '*2)
-            self._spacer.bind('<Button-1>', self._bindings[RESTORE_BIND])
-            self._spacer.grid(row=0, column=0)
+            if hasattr(self, '_sub_projects'):
+                self._sub_projects.grid_remove()
+                self._minimise.grid_remove()
+                del self._sub_projects
+                del self._minimise
+            self._create_spacer_display()
+
+    def _create_sub_project_display(self):
+        ''' '''
+        self._sub_projects = ProjectsDisplay(self,
+                self._project.sub_projects.values(), self._bindings,
+                show_complete=self._show_complete)
+        self._minimise = tk.Label(self, cursor=CLICK_CURSOR)
+        self._minimise.grid(row=0, column=0, sticky='n')
+        self.maximise()
+        if not self._default_show:
+            self.minimise()
+
+    def _create_spacer_display(self):
+        ''' '''
+        self._spacer = tk.Label(self, text=' '*2)
+        self._spacer.bind('<Button-1>', self._bindings[RESTORE_BIND])
+        self._spacer.grid(row=0, column=0)
 
     def _add_bindings(self):
         ''' Add relevant bindings to this ProjectView. '''
@@ -173,7 +205,25 @@ class ProjectView(ProjectViewBase):
         self._project.save()
         # toggle focus off then back on refreshed
         for toggle in range(2):
-            self._bindings[FOCUS_BIND](self._project)
+            self._bindings[FOCUS_BIND](self)
+
+    def add_sub_project(self, project):
+        ''' Adds the given project to the display.
+
+        Assumes that 'project' is already a sub-project of the stored project.
+
+        '''
+        if hasattr(self, '_sub_projects'):
+            self._sub_projects.add_project(project)
+        else:
+            self._display_sub_projects()
+
+    def remove_sub_project(self, project_view):
+        ''' Remove and return a ProjectView from the display. '''
+        super().remove_sub_project(project_view)
+        self._sub_projects.remove_project_view(project_view)
+        if self._sub_projects.is_empty():
+            self._display_sub_projects()
 
     def minimise(self, event=None):
         ''' Binding for hiding this Project's sub-projects. '''
@@ -204,7 +254,6 @@ class ProjectsDisplay(tk.Frame):
 
         self.bind('<Button-1>', self._bindings[RESTORE_BIND])
 
-        self._projects = []
         self._project_views = []
         for project in projects:
             self.add_project(project)
@@ -213,25 +262,30 @@ class ProjectsDisplay(tk.Frame):
 
     def add_project(self, project):
         ''' Add a Project to the display. '''
-        self._projects.append(project)
         project_view = ProjectView(self, project, bindings=self._bindings,
                                    show_complete=self._show_complete)
         self.add_project_view(project_view)
 
-    def add_project_view(self, project_view, project=None):
+    def add_project_view(self, project_view):
         ''' Add a ProjectView to the display. '''
-        if project:
-            self._projects.append(project)
         if not project_view.hidden:
             project_view.grid(sticky='w')
         self._project_views.append(project_view)
 
-    def remove_project(self, project):
+    def remove_project_view(self, project_view):
         ''' Remove and return a ProjectView from the display. '''
-        for project_view in self._project_views:
-            if project_view._project is project:
-                project_view.grid_remove()
-                return self._project_views.remove(project_view)
+        project_view.grid_remove()
+        self._project_views.remove(project_view)
+        return project_view
+
+    def is_empty(self):
+        ''' Returns True if not storing any ProjectViews. '''
+        return not self.num_projects
+
+    @property
+    def num_projects(self):
+        ''' Returns the number of ProjectViews stored in this display. '''
+        return len(self._project_views)
 
 
 class ProjectEditor(tk.Frame):
@@ -275,12 +329,11 @@ class ProjectEditor(tk.Frame):
                                        'due_date', 'precursors', 'duration',
                                        'scheduled_time', 'completion_date']):
             text = value.replace('_', ' ')
-            self._entries[value] = \
-                    LabelEntry(self, dict(text=text, anchor='e'), row=index+1)
-            self._entries[value].bind(CTRL('Return'),
-                                      self._bindings[SUBMIT_BIND])
-            self._entries[value].bind(CTRL('BackSpace'),
-                                      self._bindings[DELETE_BIND])
+            entry = LabelEntry(self, dict(text=text, anchor='e'), row=index+1)
+            entry.bind(CTRL('Return'), self._bindings[SUBMIT_BIND])
+            entry.bind(CTRL('BackSpace'), self._bindings[DELETE_BIND])
+            entry.bind('<FocusOut>', self.__edit_submit)
+            self._entries[value] = entry
 
     def _create_buttons(self):
         ''' Create the buttons to add/delete a project, or change mode. '''
@@ -305,7 +358,6 @@ class ProjectEditor(tk.Frame):
             result = entry.get()
             if result:
                 submission_results[name.replace(' ','_')] = result
-            entry.clear()
         return submission_results
 
     def display_selection_data(self, data):
@@ -339,13 +391,18 @@ class ProjectEditor(tk.Frame):
             if name:
                 self._title.set(name)
         # clear entries
-        self._clear()
+        self.clear()
         # update buttons
         self._add_mode_button.config(text=self.GOTO_EDIT_MODE)
         self._submit_button.grid()
         self._delete_button.grid_remove()
 
-    def _clear(self):
+    def clear(self):
         ''' Clear all data fields. '''
         for entry in self._entries.values():
             entry.clear()
+
+    def __edit_submit(self, event=None):
+        ''' Binding to submit if in edit mode. '''
+        if self._add_mode_button.cget('text') == self.GOTO_ADD_MODE:
+            self._bindings[SUBMIT_BIND]()
