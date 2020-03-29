@@ -261,22 +261,22 @@ class ProjectsDisplay(tk.Frame):
         # TODO scrollbars
 
     def add_project(self, project):
-        ''' Add a Project to the display. '''
+        ''' Add a Project to the display, return the displayed ProjectView. '''
         project_view = ProjectView(self, project, bindings=self._bindings,
                                    show_complete=self._show_complete)
-        self.add_project_view(project_view)
+        return self.add_project_view(project_view)
 
     def add_project_view(self, project_view):
-        ''' Add a ProjectView to the display. '''
+        ''' Add a ProjectView to the display and return it. '''
         if project_view.parent is not self:
             # create new project view with default parameters (maybe bad?)
             #   -> handles tkinter not allowing changed master
-            self.add_project(project_view._project)
-            return
+            return self.add_project(project_view._project)
 
         if not project_view.hidden:
             project_view.grid(sticky='w')
         self._project_views.append(project_view)
+        return project_view
 
     def remove_project_view(self, project_view):
         ''' Remove and return a ProjectView from the display. '''

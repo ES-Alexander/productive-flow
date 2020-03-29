@@ -31,6 +31,11 @@ class MainView(ProjectViewBase):
                 display_bindings, 'to do', **display)
         self._project_editor = ProjectEditor(self, editor_bindings, **display)
 
+        # expansion
+        self.grid_rowconfigure(0, weight=1)
+        for column in range(2):
+            self.grid_columnconfigure(column, weight=1)
+
         # layout
         self._planned_display.grid(row=0, column=0, rowspan=2, sticky='news')
         self._unordered_display.grid(row=0, column=1, sticky='news')
@@ -142,9 +147,10 @@ class MainView(ProjectViewBase):
             # if adding to a currently unordered sub-project of main:
             if is_general_project and not already_planned:
                 # planned now, so move appropriately
-                self._planned_display.add_project_view(
+                project_view = self._planned_display.add_project_view(
                         self._unordered_display.remove_project_view(
                             self._focus_view))
+                self._set_focus(project_view)
 
             self._project_editor.clear()
 
@@ -168,7 +174,7 @@ class MainView(ProjectViewBase):
            not hasattr(parent_view, '_sub_projects'):
             # removing only subproject of planned general project
             #   -> move to unordered
-            self._unordered_display.add_project_view(
+            parent_view = self._unordered_display.add_project_view(
                 self._planned_display.remove_project_view(parent_view))
         # set focus back to parent of deleted project
         self._set_focus(parent_view)
