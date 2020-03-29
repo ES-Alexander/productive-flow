@@ -23,6 +23,7 @@ FOCUS_BIND   = 'focus'
 DELETE_BIND  = 'delete'
 SUBMIT_BIND  = 'submit'
 RESTORE_BIND = 'restore'
+SCROLL_BIND  = 'scroll' # TODO propagate
 
 
 class ProjectViewBase(tk.Frame):
@@ -143,6 +144,8 @@ class ProjectView(ProjectViewBase):
                 show_complete=self._show_complete)
         self._minimise = tk.Label(self, cursor=CLICK_CURSOR)
         self._minimise.grid(row=0, column=0, sticky='n')
+        self._sub_projects.bind('<MouseWheel>', self._bindings[SCROLL_BIND])
+        self._minimise.bind('<MouseWheel>', self._bindings[SCROLL_BIND])
         self.maximise()
         if not self._default_show:
             self.minimise()
@@ -151,11 +154,14 @@ class ProjectView(ProjectViewBase):
         ''' '''
         self._spacer = tk.Label(self, text=' '*2)
         self._spacer.bind('<Button-1>', self._bindings[RESTORE_BIND])
+        self._spacer.bind('<MouseWheel>', self._bindings[SCROLL_BIND])
         self._spacer.grid(row=0, column=0)
 
     def _add_bindings(self):
         ''' Add relevant bindings to this ProjectView. '''
         self.bind('<Button-1>', self._bindings[RESTORE_BIND])
+        self.bind('<MouseWheel>', self._bindings[SCROLL_BIND])
+        self._name.bind('<MouseWheel>', self._bindings[SCROLL_BIND])
         self._name.bind('<Button-1>',
                         lambda event: self._bindings[FOCUS_BIND](self))
         self._name.bind('<Enter>',
@@ -247,10 +253,23 @@ class ProjectsDisplay(tk.Frame):
         self._master = master
         self._bindings = bindings
         self._show_complete = show_complete
+        self._display_frame = self
 
         if title:
+            # add title and make scrollable
             self._title = tk.Label(self, text=title, font=HEADING_FONT)
-            self._title.grid(sticky='ew')
+            self._title.grid(sticky='ew', columnspan=2)
+
+            scrollframe = ScrollableFrame(self, row=1, parent_view=master)
+
+            self._display_frame = scrollframe.frame
+            self._bindings[SCROLL_BIND] = scrollframe.command
+            self.columnconfigure(0, weight=1)
+            self.rowconfigure(1, weight=1)
+        else:
+            # add scroll binding as appropriate
+            scroll = self._bindings[SCROLL_BIND]
+            self.bind('<MouseWheel>', scroll)
 
         self.bind('<Button-1>', self._bindings[RESTORE_BIND])
 
@@ -258,17 +277,16 @@ class ProjectsDisplay(tk.Frame):
         for project in projects:
             self.add_project(project)
 
-        # TODO scrollbars
-
     def add_project(self, project):
         ''' Add a Project to the display, return the displayed ProjectView. '''
-        project_view = ProjectView(self, project, bindings=self._bindings,
+        project_view = ProjectView(self._display_frame, project,
+                                   bindings=self._bindings,
                                    show_complete=self._show_complete)
         return self.add_project_view(project_view)
 
     def add_project_view(self, project_view):
         ''' Add a ProjectView to the display and return it. '''
-        if project_view.parent is not self:
+        if project_view.parent is not self._display_frame:
             # create new project view with default parameters (maybe bad?)
             #   -> handles tkinter not allowing changed master
             return self.add_project(project_view._project)
@@ -280,7 +298,6 @@ class ProjectsDisplay(tk.Frame):
 
     def remove_project_view(self, project_view):
         ''' Remove and return a ProjectView from the display. '''
-        project_view._name.config(text='waddafuq?')
         project_view.grid_remove()
         self._project_views.remove(project_view)
         return project_view

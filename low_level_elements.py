@@ -95,3 +95,29 @@ class BetterButton(tk.Button):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.bind('<Return>', lambda e: self.invoke())
+
+class ScrollableFrame(tk.Canvas):
+    ''' A scrollable frame widget. '''
+    def __init__(self, master, parent_view=None, row=0, column=0, **kwargs):
+        ''' Initialise the widget with an optional parent ProjectView. '''
+        super().__init__(master, **kwargs)
+        self._master = master
+        scrollbar = tk.Scrollbar(master, orient='vertical',
+                                 command=self.yview)
+        self.frame = _ScrollingFrame(self, parent_view)
+        self.frame.bind('<Configure>', lambda event=None: self.config(
+                scrollregion=self.bbox('all')))
+
+        self.create_window((0,0), window=self.frame, anchor='nw')
+        self.config(yscrollcommand=scrollbar.set)
+        self.command = lambda event: self.yview_scroll(-event.delta, 'units')
+        self.bind('<MouseWheel>', self.command)
+
+        self.grid(row=row, column=column, sticky='nsew')
+        scrollbar.grid(row=row, column=column+1, sticky='ns')
+
+class _ScrollingFrame(tk.Frame):
+    ''' Frame widget with an optional parent ProjectView. '''
+    def __init__(self, master, parent_view=None, **kwargs):
+        super().__init__(master, **kwargs)
+        self._master = parent_view or master

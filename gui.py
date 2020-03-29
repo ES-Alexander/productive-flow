@@ -32,9 +32,9 @@ class MainView(ProjectViewBase):
         self._project_editor = ProjectEditor(self, editor_bindings, **display)
 
         # expansion
-        self.grid_rowconfigure(0, weight=1)
-        for column in range(2):
-            self.grid_columnconfigure(column, weight=1)
+        #self.grid_rowconfigure(0, weight=1)
+        #for column in range(2):
+        #    self.grid_columnconfigure(column, weight=1)
 
         # layout
         self._planned_display.grid(row=0, column=0, rowspan=2, sticky='news')
@@ -72,6 +72,7 @@ class MainView(ProjectViewBase):
         display_bindings = {
             FOCUS_BIND: self._focus_binding,
             RESTORE_BIND: self._restore_binding,
+            SCROLL_BIND: lambda event: None,
         }
         editor_bindings = {
             ADD_BIND: self._add_binding,
