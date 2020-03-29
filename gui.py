@@ -160,16 +160,16 @@ class MainView(ProjectViewBase):
             print("Cannot delete main project") # SHOULDN'T BE REACHABLE
             return
 
-        parent_view = removee._parent._master
-        if not parent_view is self and \
-           parent_view._parent._master is self and \
-           parent_view._sub_projects.num_projects == 1:
+        parent_view = removee.parent._master
+        parent_view.remove_sub_project(removee)
+
+        if parent_view is not self and \
+           parent_view.parent._master is self and \
+           not hasattr(parent_view, '_sub_projects'):
             # removing only subproject of planned general project
             #   -> move to unordered
             self._unordered_display.add_project_view(
                 self._planned_display.remove_project_view(parent_view))
-
-        parent_view.remove_sub_project(removee)
         # set focus back to parent of deleted project
         self._set_focus(parent_view)
 

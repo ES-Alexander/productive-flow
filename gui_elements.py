@@ -40,8 +40,8 @@ class ProjectViewBase(tk.Frame):
         self._project = project
 
     @property
-    def _parent(self):
-        ''' Set _parent as an alias of _master. '''
+    def parent(self):
+        ''' Set 'parent' as an alias of _master. '''
         return self._master
 
     def __save_project(func):
@@ -268,12 +268,19 @@ class ProjectsDisplay(tk.Frame):
 
     def add_project_view(self, project_view):
         ''' Add a ProjectView to the display. '''
+        if project_view.parent is not self:
+            # create new project view with default parameters (maybe bad?)
+            #   -> handles tkinter not allowing changed master
+            self.add_project(project_view._project)
+            return
+
         if not project_view.hidden:
             project_view.grid(sticky='w')
         self._project_views.append(project_view)
 
     def remove_project_view(self, project_view):
         ''' Remove and return a ProjectView from the display. '''
+        project_view._name.config(text='waddafuq?')
         project_view.grid_remove()
         self._project_views.remove(project_view)
         return project_view
@@ -360,8 +367,10 @@ class ProjectEditor(tk.Frame):
                 submission_results[name.replace(' ','_')] = result
         return submission_results
 
-    def display_selection_data(self, data):
+    def display_selection_data(self, data, clear=True):
         ''' Display 'data' in the data fields. '''
+        if clear:
+            self.clear()
         for name in data:
             self._entries[name].set(data[name])
 
