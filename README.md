@@ -1,6 +1,11 @@
 # productive-flow
 An application for guided and encouraged productivity
 
+---
+#### This project has been effectively terminated as many of the desired features are already implemented at http://www.notion.so, a cross-platform, cloud-stored, intuitive organisation/notes/everything application (check it out, it's really cool).
+#### The features which are not currently implemented, such as Gantt style dependency maps and Work Breakdown Structures have been suggested to Notion's devs, and are in the pipeline.
+---
+
 ## About
 Developed by my brother and me to combine a set of productivity resources in a meaningful and usable way, 
 providing as much guidance as needed to get you working on your most important projects, or planning them
