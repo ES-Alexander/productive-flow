@@ -27,3 +27,4 @@ The project has been based off ideas from the following resources, as well as so
 Get More of It"*
 - Nir Eyal's *"Indistractable: How to Control Your Attention and Choose Your Life"*
 - to be continued... (including source links where possible)
+- https://www.bsoundarya.com/part-iii-building-a-second-brain%e2%80%8a-%e2%80%8ausing-notion-and-roam-research/
